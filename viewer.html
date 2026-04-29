@@ -129,7 +129,7 @@
       flex-shrink: 0; z-index: 5;
     }
 
-    .hit-zone { position: absolute; top: 0; width: 40%; height: 100%; cursor: pointer; z-index: 10; }
+    .hit-zone { position: absolute; top: 0; width: 50%; height: 100%; cursor: pointer; z-index: 10; }
     #hit-prev { left: 0; }
     #hit-next { right: 0; }
 
@@ -1230,6 +1230,16 @@
   document.addEventListener('mousemove', showBars);
   document.addEventListener('touchstart', showBars, { passive: true });
   showBars();
+
+  /* Mouse wheel page navigation (page mode only) */
+  let wheelCooldown = false;
+  document.addEventListener('wheel', e => {
+    if (scrollMode) return;
+    if (wheelCooldown) return;
+    wheelCooldown = true;
+    setTimeout(() => { wheelCooldown = false; }, 350);
+    navigate(e.deltaY > 0 ? 'forward' : 'backward');
+  }, { passive: true });
 
   /* Resize */
   let resizeTimer;
