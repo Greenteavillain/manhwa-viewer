@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>뷰어</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── TOP BAR ── */
+    #topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 48px;
+      background: rgba(10,10,10,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid #222;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      z-index: 200;
+      transition: opacity 0.3s;
+    }
+    #topbar.hidden { opacity: 0; pointer-events: none; }
+
+    #title-label {
+      flex: 1;
+      font-size: 0.82rem;
+      color: #888;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    #page-indicator {
+      font-size: 0.75rem;
+      color: #666;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #preload-badge {
+      font-size: 0.7rem;
+      color: #555;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #bbb;
+      border-radius: 5px;
+      padding: 3px 8px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+      line-height: 1.5;
+    }
+    .btn:hover { background: #2a2a2a; color: #fff; }
+    .btn.on { background: #2e2060; border-color: #7c6af7; color: #c4b5fd; }
+    .btn.icon { padding: 3px 7px; font-size: 0.9rem; }
+
+    .sep { width: 1px; height: 20px; background: #2a2a2a; flex-shrink: 0; }
+
+    /* ── BOTTOM BAR ── */
+    #bottombar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 36px;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid #222;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      z-index: 200;
+      transition: opacity 0.3s;
+    }
+    #bottombar.hidden { opacity: 0; pointer-events: none; }
+    #progress { flex: 1; height: 4px; background: #2a2a2a; border-radius: 2px; cursor: pointer; }
+    #progress-fill { height: 100%; background: #7c6af7; border-radius: 2px; transition: width 0.25s; }
+
+    /* ── STAGE ── */
+    #stage {
+      position: fixed;
+      inset: 48px 0 36px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ── PAGE MODE ── */
+    #book { display: flex; align-items: center; }
+
+    .page-slot {
+      position: relative;
+      overflow: hidden;
+      background: #111;
+      flex-shrink: 0;
+    }
+    #slot-left  { border-radius: 4px 0 0 4px; box-shadow: -4px 0 20px rgba(0,0,0,0.8); }
+    #slot-right { border-radius: 0 4px 4px 0; box-shadow:  4px 0 20px rgba(0,0,0,0.8); }
+    .page-slot canvas { display: block; }
+
+    .page-overlay {
+      position: absolute; inset: 0;
+      overflow: hidden; z-index: 20;
+      will-change: transform;
+    }
+    .page-overlay canvas { display: block; width: 100%; height: 100%; }
+
+    #spine {
+      width: 4px; align-self: stretch;
+      background: linear-gradient(90deg,#000 0%,#1a1a1a 50%,#000 100%);
+      flex-shrink: 0; z-index: 5;
+    }
+
+    .hit-zone { position: absolute; top: 0; width: 40%; height: 100%; cursor: pointer; z-index: 10; }
+    #hit-prev { left: 0; }
+    #hit-next { right: 0; }
+
+    body.single #slot-left { display: none !important; }
+    body.single #spine     { display: none; }
+    body.single #slot-right { border-radius: 4px; }
+
+    /* ── INFO CARD (left slot, page 1) ── */
+    .info-card {
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 2rem 2rem 2.5rem;
+      background: linear-gradient(160deg, #0c0c18 0%, #130c1e 60%, #1a0f2a 100%);
+      overflow: hidden;
+    }
+    .ic-genre {
+      font-size: 0.65rem;
+      color: #7c6af7;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    .ic-title {
+      font-size: clamp(1.1rem, 2.5vw, 2rem);
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 0.4rem;
+      word-break: keep-all;
+    }
+    .ic-author {
+      font-size: 0.8rem;
+      color: #777;
+      margin-bottom: 1.5rem;
+    }
+    .ic-divider { width: 28px; height: 2px; background: #7c6af7; margin-bottom: 1.2rem; }
+    .ic-desc {
+      font-size: 0.77rem;
+      color: #777;
+      line-height: 1.7;
+      margin-bottom: 1.5rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 5;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .ic-meta { display: flex; flex-direction: column; gap: 0.3rem; }
+    .ic-row { font-size: 0.7rem; color: #555; display: flex; gap: 0.6rem; }
+    .ic-lbl { color: #3d3d3d; min-width: 36px; }
+
+    /* ── SCROLL MODE ── */
+    #scroll-view {
+      display: none;
+      width: 100%; height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    #scroll-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 0 40px;
+      gap: 8px;
+    }
+    .scroll-page-wrap {
+      position: relative;
+      flex-shrink: 0;
+      background: #111;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+    }
+    .scroll-page-wrap canvas { display: block; }
+    .scroll-page-wrap .sp-loader {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mini-spinner {
+      width: 24px; height: 24px;
+      border: 2px solid #333; border-top-color: #7c6af7;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* ── ANNOTATIONS ── */
+    .annot-pin {
+      position: absolute;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 160;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800;
+      color: rgba(0,0,0,0.5);
+      transition: transform 0.12s;
+      user-select: none;
+      border: 2px solid rgba(255,255,255,0.25);
+      flex-shrink: 0;
+    }
+    .annot-pin:hover { transform: translate(-50%, -50%) scale(1.25); }
+
+    .annot-card {
+      position: fixed;
+      background: #fffde7;
+      border: 1px solid #ffe082;
+      border-radius: 8px;
+      padding: 10px 12px;
+      width: 210px;
+      z-index: 400;
+      box-shadow: 3px 3px 20px rgba(0,0,0,0.5);
+      font-size: 0.73rem;
+      color: #333;
+      line-height: 1.55;
+    }
+    .annot-card-author { font-weight: 700; font-size: 0.73rem; color: #4a3000; margin-bottom: 2px; }
+    .annot-card-time   { font-size: 0.62rem; color: #aaa; margin-bottom: 6px; }
+    .annot-card-body   { color: #444; word-break: break-all; white-space: pre-wrap; }
+    .annot-card-del    { display: block; margin-top: 8px; font-size: 0.62rem; color: #bbb; cursor: pointer; text-align: right; }
+    .annot-card-del:hover { color: #e55; }
+
+    #annot-overlay {
+      position: absolute; inset: 0;
+      z-index: 150; display: none;
+      cursor: crosshair;
+    }
+
+    #annot-popup {
+      position: fixed;
+      background: #1c1c1c;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 14px;
+      z-index: 500;
+      width: 230px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+      display: none;
+    }
+    #annot-popup input, #annot-popup textarea {
+      width: 100%;
+      background: #111;
+      border: 1px solid #333;
+      color: #ddd;
+      border-radius: 5px;
+      padding: 6px 8px;
+      font-size: 0.78rem;
+      font-family: inherit;
+      box-sizing: border-box;
+      outline: none;
+    }
+    #annot-popup input { margin-bottom: 8px; }
+    #annot-popup textarea { height: 72px; resize: none; margin-bottom: 8px; }
+    #annot-password { margin-bottom: 8px; }
+    #annot-popup input:focus, #annot-popup textarea:focus { border-color: #7c6af7; }
+    .annot-popup-btns { display: flex; gap: 6px; justify-content: flex-end; }
+
+    /* ── LOADER ── */
+    #loader {
+      position: fixed; inset: 0;
+      background: #0a0a0a;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 999; gap: 1rem;
+    }
+    #loader.done { display: none; }
+    .big-spinner {
+      width: 48px; height: 48px;
+      border: 4px solid #222; border-top-color: #7c6af7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #load-text { color: #666; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="big-spinner"></div>
+  <div id="load-text">PDF 불러오는 중…</div>
+</div>
+
+<div id="topbar">
+  <a href="index.html" class="btn icon" title="목록">←</a>
+  <div class="sep"></div>
+  <div id="title-label"></div>
+  <div id="page-indicator">— / —</div>
+  <div id="preload-badge"></div>
+  <div class="sep"></div>
+  <button class="btn"    id="btn-scroll">스크롤</button>
+  <button class="btn on" id="btn-spread">펼침</button>
+  <div class="sep"></div>
+  <button class="btn on" id="btn-anim">모션</button>
+  <div class="sep"></div>
+  <button class="btn"    data-size="0.60">S</button>
+  <button class="btn on" data-size="0.80">M</button>
+  <button class="btn"    data-size="0.97">L</button>
+  <div class="sep"></div>
+  <button class="btn" id="btn-annot">메모</button>
+  <div class="sep"></div>
+  <button class="btn icon" id="btn-fs" title="전체화면">⛶</button>
+</div>
+
+<div id="stage">
+  <div id="book">
+    <div class="page-slot" id="slot-left"></div>
+    <div id="spine"></div>
+    <div class="page-slot" id="slot-right"></div>
+    <div class="hit-zone" id="hit-prev"></div>
+    <div class="hit-zone" id="hit-next"></div>
+  </div>
+  <div id="scroll-view"><div id="scroll-inner"></div></div>
+</div>
+
+<div id="bottombar">
+  <button class="btn" id="btn-prev">◀</button>
+  <div id="progress"><div id="progress-fill"></div></div>
+  <button class="btn" id="btn-next">▶</button>
+</div>
+
+<div id="annot-popup">
+  <input id="annot-author" type="text" placeholder="이름" maxlength="20" autocomplete="off">
+  <textarea id="annot-content" placeholder="메모 내용… (Ctrl+Enter 저장)"></textarea>
+  <input id="annot-password" type="password" placeholder="삭제 비밀번호 (선택)" maxlength="50" autocomplete="off">
+  <div class="annot-popup-btns">
+    <button class="btn" id="annot-cancel">취소</button>
+    <button class="btn on" id="annot-submit">저장</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const params = new URLSearchParams(location.search);
+  const pdfUrl = params.get('pdf');
+  const title  = params.get('title') || 'PDF 뷰어';
+
+  let pdfDoc     = null;
+  let totalPages = 0;
+  let curPage    = 1;
+  let spread     = true;
+  let animOn     = true;
+  let scrollMode = false;
+  let isMobile   = window.innerWidth <= 700;
+  let sizeScale  = 0.80;
+  let bookMeta   = null;
+
+  const pageCache = {};   // `${n}_${sizeScale}` → canvas
+  let scrollObserver = null;
+  let navGen = 0;         // incremented each navigate(); lets runTurn detect stale calls
+
+  const DPR = window.devicePixelRatio || 1;
+
+  /* ── DOM ── */
+  const loader        = document.getElementById('loader');
+  const loadText      = document.getElementById('load-text');
+  const titleLabel    = document.getElementById('title-label');
+  const pageIndicator = document.getElementById('page-indicator');
+  const slotLeft      = document.getElementById('slot-left');
+  const slotRight     = document.getElementById('slot-right');
+  const progressFill  = document.getElementById('progress-fill');
+  const progressBar   = document.getElementById('progress');
+  const bookEl        = document.getElementById('book');
+  const scrollView    = document.getElementById('scroll-view');
+  const scrollInner   = document.getElementById('scroll-inner');
+  const btnScroll     = document.getElementById('btn-scroll');
+  const btnSpread     = document.getElementById('btn-spread');
+  const btnAnim       = document.getElementById('btn-anim');
+
+  titleLabel.textContent = title;
+  document.title = title;
+
+  /* ── Helpers ── */
+  const wait     = ms => new Promise(r => setTimeout(r, ms));
+  const stageW   = () => document.getElementById('stage').clientWidth;
+  const stageH   = () => document.getElementById('stage').clientHeight;
+  const cacheKey = n => `${n}_${sizeScale}`;
+  const esc      = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  function applyLayout() {
+    isMobile = window.innerWidth <= 700;
+    document.body.classList.toggle('single', !(spread && !isMobile) || scrollMode);
+  }
+
+  /* ── Render page → HiDPI canvas ── */
+  async function renderPage(pageNum) {
+    if (!pageNum || pageNum < 1 || pageNum > totalPages) return null;
+    const key = cacheKey(pageNum);
+    if (pageCache[key]) return pageCache[key];
+
+    const page = await pdfDoc.getPage(pageNum);
+    const h = stageH(), w = stageW();
+    const vp0 = page.getViewport({ scale: 1 });
+    const maxH = h * sizeScale;
+    const maxW = (spread && !isMobile) ? Math.floor(w / 2) - 4 : w - 8;
+    const cssScale = Math.min(maxH / vp0.height, maxW / vp0.width);
+    const vp = page.getViewport({ scale: cssScale * DPR });
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    canvas.style.width  = Math.round(vp.width  / DPR) + 'px';
+    canvas.style.height = Math.round(vp.height / DPR) + 'px';
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    pageCache[key] = canvas;
+    return canvas;
+  }
+
+  function mountCanvas(slot, src) {
+    // Remove everything except active page-overlay divs (needed for concurrent animations)
+    Array.from(slot.children).forEach(child => {
+      if (!child.classList.contains('page-overlay')) child.remove();
+    });
+    if (!src) return;
+    const c = document.createElement('canvas');
+    c.width  = src.width;
+    c.height = src.height;
+    c.style.width  = src.style.width;
+    c.style.height = src.style.height;
+    c.getContext('2d').drawImage(src, 0, 0);
+    slot.insertBefore(c, slot.firstChild); // base canvas goes behind overlays
+  }
+
+  /* When no left page exists (page 1), size slot-left and show info card */
+  function updateLeftSlot(forPage, rightCanvas) {
+    const showLeft = spread && !isMobile;
+    if (!showLeft) return;
+
+    if (forPage - 1 < 1 && rightCanvas) {
+      const csW = parseInt(rightCanvas.style.width)  || Math.round(rightCanvas.width  / DPR);
+      const csH = parseInt(rightCanvas.style.height) || Math.round(rightCanvas.height / DPR);
+      slotLeft.style.width  = csW + 'px';
+      slotLeft.style.height = csH + 'px';
+      slotLeft.innerHTML = buildInfoCard();
+    } else if (forPage - 1 >= 1) {
+      slotLeft.style.width  = '';
+      slotLeft.style.height = '';
+    }
+  }
+
+  function buildInfoCard() {
+    const m = bookMeta || {};
+    const t = m.title || title;
+    const rows = [
+      m.author ? `<div class="ic-row"><span class="ic-lbl">글·그림</span>${esc(m.author)}</div>` : '',
+      m.genre  ? `<div class="ic-row"><span class="ic-lbl">장르</span>${esc(m.genre)}</div>` : '',
+      m.date   ? `<div class="ic-row"><span class="ic-lbl">출판</span>${esc(m.date)}</div>` : '',
+      totalPages ? `<div class="ic-row"><span class="ic-lbl">분량</span>${totalPages}p</div>` : '',
+    ].filter(Boolean).join('');
+
+    return `<div class="info-card">
+      ${m.genre ? `<div class="ic-genre">${esc(m.genre)}</div>` : ''}
+      <div class="ic-title">${esc(t)}</div>
+      ${m.author ? `<div class="ic-author">${esc(m.author)}</div>` : ''}
+      <div class="ic-divider"></div>
+      ${m.description ? `<div class="ic-desc">${esc(m.description)}</div>` : ''}
+      <div class="ic-meta">${rows}</div>
+    </div>`;
+  }
+
+  /* ── Display (no animation) ── */
+  async function display(page) {
+    const showLeft = spread && !isMobile;
+    const [lc, rc] = await Promise.all([
+      showLeft ? renderPage(page - 1) : null,
+      renderPage(page)
+    ]);
+    mountCanvas(slotLeft,  lc);
+    mountCanvas(slotRight, rc);
+    updateLeftSlot(page, rc);
+    renderAnnotsOnSlot(slotRight, page);
+    if (showLeft) renderAnnotsOnSlot(slotLeft, page - 1);
+    updateUI();
+    prefetch(page);
+  }
+
+  function prefetch(page) {
+    const sl   = spread && !isMobile;
+    const step = sl ? 2 : 1;
+    const next = page + step, prev = page - step;
+    if (next <= totalPages) {
+      renderPage(next).catch(() => {});
+      if (sl && next - 1 >= 1) renderPage(next - 1).catch(() => {});
+    }
+    if (prev >= 1) renderPage(prev).catch(() => {});
+  }
+
+  function updateUI() {
+    const sl = spread && !isMobile && !scrollMode;
+    if (sl && curPage - 1 >= 1) {
+      pageIndicator.textContent = `${curPage - 1}–${curPage} / ${totalPages}`;
+    } else {
+      pageIndicator.textContent = `${curPage} / ${totalPages}`;
+    }
+    const pct = ((curPage - 1) / Math.max(totalPages - 1, 1)) * 100;
+    progressFill.style.width = pct + '%';
+  }
+
+  /* ── Overlay helpers ── */
+  function makeOverlay(src, slot) {
+    const div = document.createElement('div');
+    div.className = 'page-overlay';
+    const c = document.createElement('canvas');
+    c.width = src.width; c.height = src.height;
+    c.getContext('2d').drawImage(src, 0, 0);
+    div.appendChild(c);
+    slot.appendChild(div);
+    return div;
+  }
+
+  async function collapseOv(ov, origin, dur) {
+    ov.style.transformOrigin = origin;
+    void ov.offsetWidth;
+    ov.style.transition = `transform ${dur}ms ease-in`;
+    ov.style.transform  = 'scaleX(0)';
+    await wait(dur + 10);
+    if (ov.parentNode) ov.remove();
+  }
+
+  async function growOv(ov, origin, dur) {
+    ov.style.transformOrigin = origin;
+    ov.style.transform = 'scaleX(0)';
+    void ov.offsetWidth;
+    ov.style.transition = `transform ${dur}ms ease-out`;
+    ov.style.transform  = 'scaleX(1)';
+    await wait(dur + 10);
+    if (ov.parentNode) ov.remove();
+  }
+
+  /* ── Book-turn animations (take prevPage to get old content from cache) ── */
+  const DUR = 200;
+
+  async function animForward(prevPage, newLc, newRc) {
+    const oldRc = pageCache[cacheKey(prevPage)];
+    mountCanvas(slotRight, newRc);
+    if (oldRc)  await collapseOv(makeOverlay(oldRc, slotRight), 'left center', DUR);
+    if (newLc) {
+      const ov = makeOverlay(newLc, slotLeft);
+      await growOv(ov, 'right center', DUR);
+      mountCanvas(slotLeft, newLc);
+    }
+  }
+
+  async function animBackward(prevPage, newPage, newLc, newRc) {
+    const oldLc = pageCache[cacheKey(prevPage - 1)];
+    if (newLc) mountCanvas(slotLeft, newLc);
+    updateLeftSlot(newPage, newRc);
+    if (oldLc && spread && !isMobile)
+      await collapseOv(makeOverlay(oldLc, slotLeft), 'right center', DUR);
+    if (newRc) {
+      const ov = makeOverlay(newRc, slotRight);
+      await growOv(ov, 'left center', DUR);
+      mountCanvas(slotRight, newRc);
+    }
+  }
+
+  async function animSingle(prevPage, newRc, direction) {
+    const oldRc = pageCache[cacheKey(prevPage)];
+    mountCanvas(slotRight, newRc);
+    if (direction === 'forward') {
+      if (oldRc) await collapseOv(makeOverlay(oldRc, slotRight), 'left center', DUR);
+    } else {
+      if (newRc) {
+        const ov = makeOverlay(newRc, slotRight);
+        if (oldRc) mountCanvas(slotRight, oldRc);
+        await growOv(ov, 'right center', DUR);
+        mountCanvas(slotRight, newRc);
+      }
+    }
+  }
+
+  /* ── Navigation: fire-and-forget, each press starts immediately ── */
+  function navigate(direction) {
+    if (scrollMode) { doScrollNav(direction); return; }
+    const sl   = spread && !isMobile;
+    const step = sl ? 2 : 1;
+    const prevPage = curPage;
+
+    let newPage;
+    if (direction === 'forward') {
+      if (curPage >= totalPages) return;
+      newPage = Math.min(curPage + step, totalPages);
+    } else {
+      if (curPage <= 1) return;
+      newPage = (sl && curPage % 2 === 0) ? curPage - 1 : Math.max(curPage - step, 1);
+    }
+
+    curPage = newPage;
+    updateUI();
+    runTurn(direction, prevPage, newPage); // no await — runs in parallel with any ongoing animation
+  }
+
+  async function runTurn(direction, prevPage, newPage) {
+    const sl = spread && !isMobile;
+    const [newLc, newRc] = await Promise.all([
+      sl ? renderPage(newPage - 1) : null,
+      renderPage(newPage)
+    ]);
+
+    if (!animOn) {
+      mountCanvas(slotLeft,  newLc);
+      mountCanvas(slotRight, newRc);
+      updateLeftSlot(newPage, newRc);
+      renderAnnotsOnSlot(slotRight, newPage);
+      if (sl) renderAnnotsOnSlot(slotLeft, newPage - 1);
+      prefetch(newPage);
+      return;
+    }
+
+    if (sl) {
+      if (direction === 'forward') await animForward(prevPage, newLc, newRc);
+      else                          await animBackward(prevPage, newPage, newLc, newRc);
+    } else {
+      await animSingle(prevPage, newRc, direction);
+    }
+    updateLeftSlot(newPage, newRc);
+    renderAnnotsOnSlot(slotRight, newPage);
+    if (sl) renderAnnotsOnSlot(slotLeft, newPage - 1);
+    prefetch(newPage);
+  }
+
+  /* ── Scroll mode navigation ── */
+  function doScrollNav(direction) {
+    let target;
+    if (direction === 'forward' && curPage < totalPages) target = curPage + 1;
+    else if (direction === 'backward' && curPage > 1)   target = curPage - 1;
+    else return;
+    curPage = target;
+    updateUI();
+    /* smooth scroll only when animOn; instant otherwise */
+    scrollToScrollPage(target, animOn);
+  }
+
+  /* ── Scroll mode setup ── */
+  function enterScrollMode() {
+    if (scrollMode) return;
+    scrollMode = true;
+    bookEl.style.display       = 'none';
+    scrollView.style.display   = 'block';
+    annotOverlay.style.display = 'none';
+    applyLayout();
+    buildScrollView();
+  }
+
+  function exitScrollMode() {
+    if (!scrollMode) return;
+    scrollMode = false;
+    scrollView.style.display   = 'none';
+    bookEl.style.display       = '';
+    annotOverlay.style.display = annotMode ? 'block' : 'none';
+    applyLayout();
+    if (scrollObserver) { scrollObserver.disconnect(); scrollObserver = null; }
+  }
+
+  function buildScrollView() {
+    scrollInner.innerHTML = '';
+    if (scrollObserver) { scrollObserver.disconnect(); scrollObserver = null; }
+
+    scrollObserver = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) renderScrollWrap(e.target);
+    }, { root: scrollView, rootMargin: '600px' });
+
+    for (let i = 1; i <= totalPages; i++) {
+      const wrap = document.createElement('div');
+      wrap.className = 'scroll-page-wrap';
+      wrap.dataset.pageNum = i;
+      const estH = Math.floor(stageH() * sizeScale);
+      wrap.style.width  = Math.floor(estH * 0.707) + 'px';
+      wrap.style.height = estH + 'px';
+      wrap.innerHTML = '<div class="sp-loader"><div class="mini-spinner"></div></div>';
+      scrollInner.appendChild(wrap);
+      scrollObserver.observe(wrap);
+    }
+
+    requestAnimationFrame(() => scrollToScrollPage(curPage, false));
+    scrollView.onscroll = onScrollViewScroll;
+  }
+
+  async function renderScrollWrap(wrap) {
+    if (wrap.dataset.rendered) return;
+    wrap.dataset.rendered = '1';
+    const pageNum = parseInt(wrap.dataset.pageNum);
+    try {
+      const page     = await pdfDoc.getPage(pageNum);
+      const vp0      = page.getViewport({ scale: 1 });
+      const maxHcss  = Math.floor(stageH() * sizeScale);
+      const maxWcss  = stageW() - 8;
+      const cssScale = Math.min(maxHcss / vp0.height, maxWcss / vp0.width);
+      const vp       = page.getViewport({ scale: cssScale * DPR });
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = vp.width;
+      canvas.height = vp.height;
+      const csW = Math.round(vp.width  / DPR);
+      const csH = Math.round(vp.height / DPR);
+      canvas.style.width  = csW + 'px';
+      canvas.style.height = csH + 'px';
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+      wrap.innerHTML = '';
+      wrap.style.width  = csW + 'px';
+      wrap.style.height = csH + 'px';
+      wrap.appendChild(canvas);
+      renderAnnotsOnWrap(wrap, pageNum);
+    } catch {
+      wrap.innerHTML = '<div style="color:#444;padding:1rem;font-size:0.8rem">오류</div>';
+    }
+  }
+
+  let scrollAnimFrame = null;
+
+  function scrollToScrollPage(pageNum, smooth = true) {
+    const wrap = scrollInner.querySelector(`[data-page-num="${pageNum}"]`);
+    if (!wrap) return;
+    const targetTop = wrap.offsetTop - 20;
+
+    if (!smooth) {
+      if (scrollAnimFrame) { cancelAnimationFrame(scrollAnimFrame); scrollAnimFrame = null; }
+      scrollView.scrollTop = targetTop;
+      return;
+    }
+
+    // 진행 중인 애니메이션 즉시 취소하고 현재 위치에서 새 목표로 출발
+    if (scrollAnimFrame) { cancelAnimationFrame(scrollAnimFrame); scrollAnimFrame = null; }
+
+    const startTop  = scrollView.scrollTop;
+    const distance  = targetTop - startTop;
+    const duration  = DUR * 1.5;
+    const startTime = performance.now();
+
+    function step(now) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const ease = 1 - (1 - t) * (1 - t); // ease-out quad
+      scrollView.scrollTop = startTop + distance * ease;
+      if (t < 1) scrollAnimFrame = requestAnimationFrame(step);
+      else scrollAnimFrame = null;
+    }
+    scrollAnimFrame = requestAnimationFrame(step);
+  }
+
+  function rebuildScroll() {
+    const estH = Math.floor(stageH() * sizeScale);
+    const estW = Math.floor(estH * 0.707);
+    scrollInner.querySelectorAll('.scroll-page-wrap').forEach(w => {
+      delete w.dataset.rendered;
+      w.innerHTML = '<div class="sp-loader"><div class="mini-spinner"></div></div>';
+      w.style.width  = estW + 'px';
+      w.style.height = estH + 'px';
+      if (scrollObserver) scrollObserver.observe(w);
+    });
+  }
+
+  let scrollTick = false;
+  function onScrollViewScroll() {
+    if (scrollTick) return;
+    scrollTick = true;
+    requestAnimationFrame(() => {
+      scrollTick = false;
+      const svMid = scrollView.getBoundingClientRect().top + scrollView.clientHeight / 2;
+      let best = 1, bestDist = Infinity;
+      for (const w of scrollInner.querySelectorAll('.scroll-page-wrap')) {
+        const r = w.getBoundingClientRect();
+        const dist = Math.abs((r.top + r.height / 2) - svMid);
+        if (dist < bestDist) { bestDist = dist; best = parseInt(w.dataset.pageNum); }
+      }
+      if (best !== curPage) { curPage = best; updateUI(); }
+    });
+  }
+
+  /* ── Background preload all pages ── */
+  const preloadBadge = document.getElementById('preload-badge');
+  let preloading = false;
+
+  async function preloadAll() {
+    if (preloading) return;
+    preloading = true;
+    for (let i = 1; i <= totalPages; i++) {
+      if (!pageCache[cacheKey(i)]) {
+        await renderPage(i);
+      }
+      preloadBadge.textContent = `(${i}/${totalPages})`;
+    }
+    preloadBadge.textContent = '';
+    preloading = false;
+  }
+
+  /* ── SUPABASE ── */
+  const SB_URL = 'https://ihecmsgxpfdiizlkdylv.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloZWNtc2d4cGZkaWl6bGtkeWx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NDQxNTUsImV4cCI6MjA5MzAyMDE1NX0.yKOehtOFcr7IRpDFsKmiRJFB63QsAxk1NU258EKfr0s';
+
+  async function sbFetch(path, opts = {}) {
+    const res = await fetch(SB_URL + '/rest/v1/' + path, {
+      ...opts,
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        ...(opts.headers || {})
+      }
+    });
+    if (opts.method === 'DELETE') return;
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    return data;
+  }
+
+  /* ── ANNOTATIONS ── */
+  const ANNOT_COLORS = ['#FFD600','#00E676','#40C4FF','#FF6E40','#EA80FC','#FFAB40'];
+
+  function annotColor(author) {
+    let h = 0;
+    for (let i = 0; i < (author || '').length; i++) h = (h * 31 + author.charCodeAt(i)) & 0xffff;
+    return ANNOT_COLORS[h % ANNOT_COLORS.length];
+  }
+
+  let annotMode   = false;
+  let annotations = [];
+
+  async function loadAnnotations() {
+    try {
+      const rows = await sbFetch(`annotations?pdf_file=eq.${encodeURIComponent(pdfUrl)}&order=created_at.asc`);
+      annotations = Array.isArray(rows) ? rows : [];
+    } catch { annotations = []; }
+  }
+
+  async function saveAnnotation(pageNum, xPct, yPct, author, content, password = '') {
+    try {
+      const rows = await sbFetch('annotations', {
+        method: 'POST',
+        headers: { 'Prefer': 'return=representation' },
+        body: JSON.stringify({ pdf_file: pdfUrl, page_number: pageNum, x_pct: xPct, y_pct: yPct, author: author || '익명', content, password })
+      });
+      if (Array.isArray(rows) && rows[0]) {
+        annotations.push(rows[0]);
+        refreshAnnotsOnPage(pageNum);
+      }
+    } catch(err) {
+      console.error('메모 저장 실패:', err);
+      alert('메모 저장 실패: ' + err.message);
+    }
+  }
+
+  async function deleteAnnotation(annot) {
+    if (annot.password) {
+      const input = prompt('삭제 비밀번호를 입력하세요');
+      if (input === null) return; // 취소
+      if (input !== annot.password) { alert('비밀번호가 틀렸습니다.'); return; }
+    }
+    try {
+      await sbFetch(`annotations?id=eq.${annot.id}`, { method: 'DELETE' });
+      annotations = annotations.filter(a => a.id !== annot.id);
+      closeAnnotCard();
+      refreshAnnotsOnPage(annot.page_number);
+    } catch(err) {
+      console.error('메모 삭제 실패:', err);
+    }
+  }
+
+  function refreshAnnotsOnPage(pageNum) {
+    if (!scrollMode) {
+      renderAnnotsOnSlot(slotRight, curPage);
+      if (spread && !isMobile) renderAnnotsOnSlot(slotLeft, curPage - 1);
+    } else {
+      const wrap = scrollInner.querySelector(`[data-page-num="${pageNum}"]`);
+      if (wrap && wrap.dataset.rendered) renderAnnotsOnWrap(wrap, pageNum);
+    }
+  }
+
+  function renderAnnotsOnSlot(slot, pageNum) {
+    slot.querySelectorAll('.annot-pin').forEach(el => el.remove());
+    if (!pageNum || pageNum < 1 || pageNum > totalPages || !slot.querySelector('canvas')) return;
+    annotations.filter(a => a.page_number === pageNum).forEach(a => slot.appendChild(makeAnnotPin(a)));
+  }
+
+  function renderAnnotsOnWrap(wrap, pageNum) {
+    wrap.querySelectorAll('.annot-pin').forEach(el => el.remove());
+    if (!wrap.querySelector('canvas')) return;
+    annotations.filter(a => a.page_number === pageNum).forEach(a => wrap.appendChild(makeAnnotPin(a)));
+  }
+
+  function makeAnnotPin(annot) {
+    const color = annotColor(annot.author || '익명');
+    const pin = document.createElement('div');
+    pin.className = 'annot-pin';
+    pin.dataset.id = annot.id;
+    pin.style.left       = annot.x_pct + '%';
+    pin.style.top        = annot.y_pct + '%';
+    pin.style.background = color;
+    pin.textContent = (annot.author || '?')[0].toUpperCase();
+    pin.addEventListener('click', e => {
+      e.stopPropagation();
+      const existing = document.getElementById('annot-active-card');
+      if (existing && existing.dataset.id === annot.id) { closeAnnotCard(); return; }
+      showAnnotCard(annot, pin);
+    });
+    return pin;
+  }
+
+  /* ── Annotation card (singleton, fixed to viewport) ── */
+  function showAnnotCard(annot, pinEl) {
+    closeAnnotCard();
+    const pinRect = pinEl.getBoundingClientRect();
+    const color   = annotColor(annot.author || '익명');
+    const date    = new Date(annot.created_at).toLocaleDateString('ko-KR');
+
+    const card = document.createElement('div');
+    card.className  = 'annot-card';
+    card.id         = 'annot-active-card';
+    card.dataset.id = annot.id;
+    card.style.borderColor = color;
+    card.innerHTML = `
+      <div class="annot-card-author">${esc(annot.author || '익명')}</div>
+      <div class="annot-card-time">${date}</div>
+      <div class="annot-card-body">${esc(annot.content)}</div>
+      <span class="annot-card-del">삭제</span>
+    `;
+    card.querySelector('.annot-card-del').addEventListener('click', e => {
+      e.stopPropagation();
+      deleteAnnotation(annot);
+    });
+    document.body.appendChild(card);
+
+    requestAnimationFrame(() => {
+      const cW = card.offsetWidth, cH = card.offsetHeight;
+      let left = pinRect.right + 10;
+      let top  = pinRect.top - cH / 2;
+      if (left + cW > window.innerWidth  - 10) left = pinRect.left - cW - 10;
+      if (top < 54)                             top  = pinRect.bottom + 6;
+      if (top + cH > window.innerHeight - 44)  top  = pinRect.top - cH - 6;
+      card.style.left = Math.max(6, left) + 'px';
+      card.style.top  = Math.max(54, top) + 'px';
+    });
+
+    setTimeout(() => document.addEventListener('click', closeAnnotCardOutside), 10);
+  }
+
+  function closeAnnotCard() {
+    const c = document.getElementById('annot-active-card');
+    if (c) c.remove();
+    document.removeEventListener('click', closeAnnotCardOutside);
+  }
+
+  function closeAnnotCardOutside(e) {
+    if (!e.target.closest('#annot-active-card') && !e.target.closest('.annot-pin')) closeAnnotCard();
+  }
+
+  /* ── Annotation input popup ── */
+  const annotPopup      = document.getElementById('annot-popup');
+  const annotAuthorEl   = document.getElementById('annot-author');
+  const annotContentEl  = document.getElementById('annot-content');
+  const annotPasswordEl = document.getElementById('annot-password');
+  let pendingAnnot = null;
+
+  document.getElementById('annot-cancel').addEventListener('click', () => {
+    annotPopup.style.display = 'none';
+    annotPasswordEl.value = '';
+    pendingAnnot = null;
+  });
+
+  document.getElementById('annot-submit').addEventListener('click', async () => {
+    const content = annotContentEl.value.trim();
+    if (!content) { annotContentEl.focus(); return; }
+    const author   = annotAuthorEl.value.trim() || '익명';
+    const password = annotPasswordEl.value;
+    localStorage.setItem('annot_author', author);
+    const { pageNum, xPct, yPct } = pendingAnnot;
+    pendingAnnot = null;
+    annotPopup.style.display = 'none';
+    annotContentEl.value  = '';
+    annotPasswordEl.value = '';
+    await saveAnnotation(pageNum, xPct, yPct, author, content, password);
+  });
+
+  annotContentEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) document.getElementById('annot-submit').click();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (annotPopup.style.display !== 'none') { annotPopup.style.display = 'none'; pendingAnnot = null; }
+    closeAnnotCard();
+  });
+
+  function showAnnotPopup(clientX, clientY, pageNum, xPct, yPct) {
+    closeAnnotCard();
+    pendingAnnot = { pageNum, xPct, yPct };
+    annotAuthorEl.value  = localStorage.getItem('annot_author') || '';
+    annotContentEl.value = '';
+    const pw = 230, ph = 160;
+    let left = clientX + 12, top = clientY + 12;
+    if (left + pw > window.innerWidth)  left = clientX - pw - 12;
+    if (top  + ph > window.innerHeight) top  = clientY - ph - 12;
+    annotPopup.style.left    = Math.max(6, left) + 'px';
+    annotPopup.style.top     = Math.max(54, top) + 'px';
+    annotPopup.style.display = 'block';
+    setTimeout(() => (annotAuthorEl.value ? annotContentEl : annotAuthorEl).focus(), 30);
+  }
+
+  /* ── Annotation overlay for page mode (sits above hit-zones, below pins) ── */
+  const annotOverlay = document.createElement('div');
+  annotOverlay.id = 'annot-overlay';
+  bookEl.appendChild(annotOverlay);
+
+  annotOverlay.addEventListener('click', e => {
+    closeAnnotCard();
+    const sl = spread && !isMobile;
+    let slot, pageNum;
+    if (sl && slotLeft.querySelector('canvas')) {
+      const leftRect = slotLeft.getBoundingClientRect();
+      if (e.clientX <= leftRect.right) { slot = slotLeft; pageNum = curPage - 1; }
+      else                               { slot = slotRight; pageNum = curPage; }
+    } else {
+      slot = slotRight; pageNum = curPage;
+    }
+    if (!slot || !slot.querySelector('canvas') || pageNum < 1 || pageNum > totalPages) return;
+    const r    = slot.getBoundingClientRect();
+    const xPct = Math.max(3, Math.min(97, ((e.clientX - r.left) / r.width)  * 100));
+    const yPct = Math.max(3, Math.min(97, ((e.clientY - r.top)  / r.height) * 100));
+    showAnnotPopup(e.clientX, e.clientY, pageNum, xPct, yPct);
+  });
+
+  /* ── Scroll mode annotation click ── */
+  scrollInner.addEventListener('click', e => {
+    if (!annotMode) return;
+    if (e.target.closest('.annot-pin')) return;
+    const wrap = e.target.closest('.scroll-page-wrap');
+    if (!wrap || !wrap.querySelector('canvas')) return;
+    closeAnnotCard();
+    const pageNum = parseInt(wrap.dataset.pageNum);
+    const r    = wrap.getBoundingClientRect();
+    const xPct = Math.max(3, Math.min(97, ((e.clientX - r.left) / r.width)  * 100));
+    const yPct = Math.max(3, Math.min(97, ((e.clientY - r.top)  / r.height) * 100));
+    showAnnotPopup(e.clientX, e.clientY, pageNum, xPct, yPct);
+  });
+
+  /* ── Annotation mode toggle ── */
+  const btnAnnot = document.getElementById('btn-annot');
+  btnAnnot.addEventListener('click', () => {
+    annotMode = !annotMode;
+    btnAnnot.classList.toggle('on', annotMode);
+    annotOverlay.style.display = annotMode && !scrollMode ? 'block' : 'none';
+    if (!annotMode) {
+      closeAnnotCard();
+      annotPopup.style.display = 'none';
+      pendingAnnot = null;
+    }
+  });
+
+  /* ── Fetch manifest for book meta ── */
+  async function fetchMeta() {
+    try {
+      const items = await fetch('manifest.json').then(r => r.json());
+      bookMeta = items.find(item => item.file === pdfUrl) || null;
+    } catch {}
+  }
+
+  /* ── Load PDF ── */
+  async function loadPdf() {
+    if (!pdfUrl) { loadText.textContent = '?pdf= 파라미터가 없습니다.'; return; }
+    try {
+      await fetchMeta();
+      pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+      totalPages = pdfDoc.numPages;
+      applyLayout();
+      await loadAnnotations();
+      await display(1);
+      loader.classList.add('done');
+      preloadAll(); // background — no await
+    } catch (e) {
+      loadText.textContent = '불러올 수 없습니다: ' + e.message;
+    }
+  }
+
+  /* ── Mode button sync ── */
+  function syncModeButtons() {
+    btnScroll.classList.toggle('on', scrollMode);
+    btnSpread.classList.toggle('on', !scrollMode && spread);
+  }
+
+  /* ── Events ── */
+  document.getElementById('btn-next').addEventListener('click', () => navigate('forward'));
+  document.getElementById('btn-prev').addEventListener('click', () => navigate('backward'));
+  document.getElementById('hit-next').addEventListener('click', () => navigate('forward'));
+  document.getElementById('hit-prev').addEventListener('click', () => navigate('backward'));
+
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate('forward');
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')  navigate('backward');
+  });
+
+  let touchX = null;
+  document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (touchX === null || scrollMode) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (Math.abs(dx) < 40) return;
+    navigate(dx < 0 ? 'forward' : 'backward');
+  }, { passive: true });
+
+  progressBar.addEventListener('click', async e => {
+    const pct    = e.offsetX / progressBar.clientWidth;
+    const target = Math.max(1, Math.min(totalPages, Math.round(pct * totalPages)));
+    if (scrollMode) { curPage = target; scrollToScrollPage(target, animOn); updateUI(); return; }
+    const sl = spread && !isMobile;
+    let snapped = target;
+    if (sl && snapped > 1 && snapped % 2 === 0 && snapped < totalPages) snapped++;
+    curPage = Math.min(snapped, totalPages);
+    await display(curPage);
+  });
+
+  /* 스크롤 ↔ 펼침: 상호 전환 모드 */
+  btnScroll.addEventListener('click', async () => {
+    if (scrollMode) {
+      exitScrollMode();
+      spread = true;
+      Object.keys(pageCache).forEach(k => delete pageCache[k]);
+      preloading = false;
+      await display(curPage);
+      preloadAll();
+    } else {
+      enterScrollMode();
+    }
+    syncModeButtons();
+  });
+
+  btnSpread.addEventListener('click', async () => {
+    if (scrollMode) {
+      exitScrollMode();
+      spread = true;
+    } else {
+      spread = !spread;
+    }
+    Object.keys(pageCache).forEach(k => delete pageCache[k]);
+    preloading = false;
+    applyLayout();
+    await display(curPage);
+    preloadAll();
+    syncModeButtons();
+  });
+
+  btnAnim.addEventListener('click', () => {
+    animOn = !animOn;
+    btnAnim.classList.toggle('on', animOn);
+  });
+
+  document.querySelectorAll('[data-size]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const newScale = parseFloat(btn.dataset.size);
+      if (newScale === sizeScale) return;
+      sizeScale = newScale;
+      document.querySelectorAll('[data-size]').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      Object.keys(pageCache).forEach(k => delete pageCache[k]);
+      preloading = false;
+      if (scrollMode) rebuildScroll();
+      else { await display(curPage); preloadAll(); }
+    });
+  });
+
+  /* 전체화면 */
+  const btnFs = document.getElementById('btn-fs');
+  btnFs.addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen();
+  });
+  document.addEventListener('fullscreenchange', async () => {
+    const isFs = !!document.fullscreenElement;
+    btnFs.textContent = isFs ? '✕' : '⛶';
+    btnFs.title = isFs ? '전체화면 종료' : '전체화면';
+    Object.keys(pageCache).forEach(k => delete pageCache[k]);
+    preloading = false;
+    if (scrollMode) rebuildScroll();
+    else { await display(curPage); preloadAll(); }
+  });
+
+  /* Auto-hide bars */
+  let hideTimer;
+  function showBars() {
+    document.getElementById('topbar').classList.remove('hidden');
+    document.getElementById('bottombar').classList.remove('hidden');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      document.getElementById('topbar').classList.add('hidden');
+      document.getElementById('bottombar').classList.add('hidden');
+    }, 3500);
+  }
+  document.addEventListener('mousemove', showBars);
+  document.addEventListener('touchstart', showBars, { passive: true });
+  showBars();
+
+  /* Resize */
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(async () => {
+      Object.keys(pageCache).forEach(k => delete pageCache[k]);
+      preloading = false;
+      applyLayout();
+      if (scrollMode) rebuildScroll();
+      else { await display(curPage); preloadAll(); }
+    }, 200);
+  });
+
+  loadPdf();
+})();
+</script>
+</body>
+</html>
