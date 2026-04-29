@@ -1103,6 +1103,11 @@
       await loadAnnotations();
       await display(1);
       loader.classList.add('done');
+      fetch(SB_URL + '/rest/v1/visits', {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdf_file: pdfUrl })
+      }).catch(() => {});
       preloadAll(); // background — no await
     } catch (e) {
       loadText.textContent = '불러올 수 없습니다: ' + e.message;
