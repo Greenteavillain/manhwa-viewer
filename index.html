@@ -38,8 +38,9 @@
       width: auto;
       user-select: none;
     }
-    header .logo svg circle.returning {
-      transition: cx 0.8s cubic-bezier(.4,.0,.2,1), cy 0.8s cubic-bezier(.4,.0,.2,1);
+    header .logo svg #eye-left.returning,
+    header .logo svg #eye-right.returning {
+      transition: cx 0.9s cubic-bezier(.4,.0,.2,1), cy 0.9s cubic-bezier(.4,.0,.2,1);
     }
 
     .filters {
@@ -289,6 +290,12 @@
         <line   x1="62.25"  y1="31.87" x2="74.93" y2="31.87"/>
         <circle id="eye-left"  cx="50.28"  cy="31.87" r="4.85"/>
         <circle id="eye-right" cx="123.68" cy="31.87" r="4.85"/>
+        <path   id="lid-left"  style="display:none"
+                stroke-linejoin="round" stroke-linecap="round"
+                d="M 19.87 12.87 L 51.87 31.87 L 19.87 50.87"/>
+        <path   id="lid-right" style="display:none"
+                stroke-linejoin="round" stroke-linecap="round"
+                d="M 117.3 12.87 L 85.3 31.87 L 117.3 50.87"/>
       </svg>
     </h1>
     <nav class="filters" id="filters"></nav>
@@ -511,24 +518,54 @@
     (function eyeTracker() {
       const leftEye  = document.getElementById('eye-left');
       const rightEye = document.getElementById('eye-right');
+      const leftLid  = document.getElementById('lid-left');
+      const rightLid = document.getElementById('lid-right');
       if (!leftEye || !rightEye) return;
       const svg = leftEye.ownerSVGElement;
 
       const VB_W = 137.17, VB_H = 63.75;
+      const LENS_RADIUS = 30.37;          // visible lens radius in viewBox units
       const LENS = [
-        { eye: leftEye,  cx: 31.87,  cy: 31.87, orbit: 18.41, defaultCx: 50.28,  defaultCy: 31.87 },
-        { eye: rightEye, cx: 105.30, cy: 31.87, orbit: 18.38, defaultCx: 123.68, defaultCy: 31.87 }
+        { eye: leftEye,  lid: leftLid,  cx: 31.87,  cy: 31.87, orbit: 18.41, defaultCx: 50.28,  defaultCy: 31.87 },
+        { eye: rightEye, lid: rightLid, cx: 105.30, cy: 31.87, orbit: 18.38, defaultCx: 123.68, defaultCy: 31.87 }
       ];
-      const angles = [0, 0];   // current angle from each lens center (rad)
-      const angVel = [0, 0];   // smoothed angular velocity (rad / ms)
+      const angles = [0, 0];                                 // angle from each lens center (rad)
+      const radii  = [LENS[0].orbit, LENS[1].orbit];          // current distance from lens center
+      const angVel = [0, 0];                                 // smoothed angular velocity (rad / ms)
 
       let pending = false, lastX = 0, lastY = 0, lastUpdate = 0;
       let inertiaRaf = null, returnTimer = null;
+      let idleWaitTimer = null, idleInterval = null, idleAnimRaf = null;
+      let idleAngle = 0;                 // last idle target (0=right, PI=left)
+      let catchUpRaf = null;             // smooth re-entry from outside
+      let cursorOutside = false;         // mouseleave sets this; first mousemove consumes it
 
-      function setEye(lens, angle) {
-        lens.eye.setAttribute('cx', lens.cx + Math.cos(angle) * lens.orbit);
-        lens.eye.setAttribute('cy', lens.cy + Math.sin(angle) * lens.orbit);
+      const IDLE_WAIT_MS     = 10000;    // 10s of no mousemove before idle starts
+      const IDLE_LOOK_MS     = 1500;     // each look-shift takes 1.5s
+      const CATCH_UP_MS      = 450;      // duration of the smooth-enter
+
+      function setEye(lens, angle, radius) {
+        lens.eye.setAttribute('cx', lens.cx + Math.cos(angle) * radius);
+        lens.eye.setAttribute('cy', lens.cy + Math.sin(angle) * radius);
       }
+      function setEyeClosed(lens, closed) {
+        if (closed) {
+          lens.eye.style.display = 'none';
+          lens.lid.style.display = 'block';
+        } else {
+          lens.eye.style.display = '';
+          lens.lid.style.display = 'none';
+        }
+      }
+      // For each lens, close the eye if the cursor (in SVG coords) is inside.
+      function updateLids(sx, sy) {
+        for (let i = 0; i < LENS.length; i++) {
+          const lens = LENS[i];
+          const d = Math.hypot(sx - lens.cx, sy - lens.cy);
+          setEyeClosed(lens, d < LENS_RADIUS - 1.5);
+        }
+      }
+      function setLidsOpen() { for (const lens of LENS) setEyeClosed(lens, false); }
       function cancelLeaveBehavior() {
         if (inertiaRaf)  { cancelAnimationFrame(inertiaRaf); inertiaRaf = null; }
         if (returnTimer) { clearTimeout(returnTimer); returnTimer = null; }
@@ -536,12 +573,100 @@
         rightEye.classList.remove('returning');
       }
 
+      // Smooth interpolation toward (targetAngle, orbit) over durationMs.
+      function smoothLook(targetAngle, durationMs) {
+        if (idleAnimRaf) { cancelAnimationFrame(idleAnimRaf); idleAnimRaf = null; }
+        leftEye.classList.remove('returning');
+        rightEye.classList.remove('returning');
+        const startAngles = [angles[0], angles[1]];
+        const deltaAngles = [];
+        for (let i = 0; i < LENS.length; i++) {
+          let delta = targetAngle - startAngles[i];
+          while (delta >  Math.PI) delta -= 2 * Math.PI;
+          while (delta < -Math.PI) delta += 2 * Math.PI;
+          deltaAngles.push(delta);
+        }
+        const startRadii  = [radii[0], radii[1]];
+        const targetRadii = [LENS[0].orbit, LENS[1].orbit];
+        const startTime = performance.now();
+        function tick(now) {
+          const t = Math.min((now - startTime) / durationMs, 1);
+          const e = 1 - Math.pow(1 - t, 3); // ease-out cubic
+          for (let i = 0; i < LENS.length; i++) {
+            angles[i] = startAngles[i] + deltaAngles[i] * e;
+            radii[i]  = startRadii[i]  + (targetRadii[i] - startRadii[i]) * e;
+            setEye(LENS[i], angles[i], radii[i]);
+          }
+          idleAnimRaf = t < 1 ? requestAnimationFrame(tick) : null;
+        }
+        idleAnimRaf = requestAnimationFrame(tick);
+      }
+      function doIdleLook() {
+        idleAngle = (idleAngle === 0) ? Math.PI : 0;
+        smoothLook(idleAngle, IDLE_LOOK_MS);
+      }
+      function cancelIdle() {
+        if (idleWaitTimer) { clearTimeout(idleWaitTimer); idleWaitTimer = null; }
+        if (idleInterval)  { clearInterval(idleInterval);  idleInterval  = null; }
+        if (idleAnimRaf)   { cancelAnimationFrame(idleAnimRaf); idleAnimRaf = null; }
+      }
+      function scheduleIdle() {
+        cancelIdle();
+        idleAngle = 0;                    // start cycle by looking left
+        idleWaitTimer = setTimeout(() => {
+          setLidsOpen();
+          doIdleLook();
+          idleInterval = setInterval(doIdleLook, IDLE_WAIT_MS);
+        }, IDLE_WAIT_MS);
+      }
+
+      // Smoothly bring eyes from current state to the live cursor target.
+      // Target updates each frame from lastX/lastY so the eyes track even
+      // while the catch-up is in progress.
+      function smoothCatchUp(durationMs) {
+        if (catchUpRaf)  { cancelAnimationFrame(catchUpRaf);  catchUpRaf  = null; }
+        if (idleAnimRaf) { cancelAnimationFrame(idleAnimRaf); idleAnimRaf = null; }
+        leftEye.classList.remove('returning');
+        rightEye.classList.remove('returning');
+        const startAngles = [angles[0], angles[1]];
+        const startRadii  = [radii[0],  radii[1]];
+        const startTime = performance.now();
+        function tick(now) {
+          const t = Math.min((now - startTime) / durationMs, 1);
+          const e = 1 - Math.pow(1 - t, 3);
+          const rect = svg.getBoundingClientRect();
+          if (!rect.width) { catchUpRaf = requestAnimationFrame(tick); return; }
+          const sx = ((lastX - rect.left) / rect.width)  * VB_W;
+          const sy = ((lastY - rect.top)  / rect.height) * VB_H;
+          updateLids(sx, sy);
+          for (let i = 0; i < LENS.length; i++) {
+            const lens = LENS[i];
+            const dx = sx - lens.cx;
+            const dy = sy - lens.cy;
+            const d  = Math.hypot(dx, dy);
+            const targetAngle  = d > 0.001 ? Math.atan2(dy, dx) : startAngles[i];
+            const targetRadius = Math.min(d, lens.orbit);
+            let delta = targetAngle - startAngles[i];
+            while (delta >  Math.PI) delta -= 2 * Math.PI;
+            while (delta < -Math.PI) delta += 2 * Math.PI;
+            angles[i] = startAngles[i] + delta * e;
+            radii[i]  = startRadii[i]  + (targetRadius - startRadii[i]) * e;
+            setEye(lens, angles[i], radii[i]);
+          }
+          catchUpRaf = t < 1 ? requestAnimationFrame(tick) : null;
+        }
+        catchUpRaf = requestAnimationFrame(tick);
+      }
+
       function update() {
         pending = false;
+        // Catch-up rAF owns the eyes during smooth re-entry.
+        if (catchUpRaf) return;
         const rect = svg.getBoundingClientRect();
         if (!rect.width) return;
         const sx = ((lastX - rect.left) / rect.width)  * VB_W;
         const sy = ((lastY - rect.top)  / rect.height) * VB_H;
+        updateLids(sx, sy);
         const now = performance.now();
         const dt = lastUpdate > 0 ? now - lastUpdate : 16;
 
@@ -549,7 +674,11 @@
           const lens = LENS[i];
           const dx = sx - lens.cx;
           const dy = sy - lens.cy;
-          const angle = Math.atan2(dy, dx);
+          const d  = Math.hypot(dx, dy);
+          // Outer wall only: clamp distance to orbit. When cursor is inside,
+          // the eye sits right on the cursor (no inner wall pushing it out).
+          const angle  = d > 0.001 ? Math.atan2(dy, dx) : angles[i];
+          const radius = Math.min(d, lens.orbit);
           if (dt > 0 && dt < 100) {
             let delta = angle - angles[i];
             while (delta >  Math.PI) delta -= 2 * Math.PI;
@@ -557,17 +686,29 @@
             angVel[i] = angVel[i] * 0.5 + (delta / dt) * 0.5; // EWMA
           }
           angles[i] = angle;
-          setEye(lens, angle);
+          radii[i]  = radius;
+          setEye(lens, angle, radius);
         }
         lastUpdate = now;
       }
       function schedule(x, y) {
-        cancelLeaveBehavior();
         lastX = x; lastY = y;
+        if (cursorOutside) {
+          cursorOutside = false;
+          cancelLeaveBehavior();
+          cancelIdle();
+          scheduleIdle();
+          smoothCatchUp(CATCH_UP_MS);
+          return;
+        }
+        cancelLeaveBehavior();
+        cancelIdle();
+        scheduleIdle();
         if (!pending) { pending = true; requestAnimationFrame(update); }
       }
 
       function startInertia() {
+        if (catchUpRaf) { cancelAnimationFrame(catchUpRaf); catchUpRaf = null; }
         let lastFrame = performance.now();
         function tick(now) {
           const dt = now - lastFrame;
@@ -576,7 +717,7 @@
           for (let i = 0; i < LENS.length; i++) {
             angles[i] += angVel[i] * dt;
             angVel[i] *= Math.pow(0.85, dt / 16); // exponential damping
-            setEye(LENS[i], angles[i]);
+            setEye(LENS[i], angles[i], radii[i]);
             if (Math.abs(angVel[i]) > 0.0005) moving = true;
           }
           inertiaRaf = moving ? requestAnimationFrame(tick) : null;
@@ -592,6 +733,8 @@
             lens.eye.setAttribute('cy', lens.defaultCy);
           }
           angles[0] = angles[1] = 0; // default angle = 0 (pointing right)
+          radii[0]  = LENS[0].orbit;
+          radii[1]  = LENS[1].orbit;
           angVel[0] = angVel[1] = 0;
           returnTimer = null;
         }, 2000);
@@ -601,7 +744,15 @@
       document.addEventListener('touchmove', e => {
         if (e.touches[0]) schedule(e.touches[0].clientX, e.touches[0].clientY);
       }, { passive: true });
-      document.documentElement.addEventListener('mouseleave', startInertia);
+      document.documentElement.addEventListener('mouseleave', () => {
+        cursorOutside = true;
+        setLidsOpen();
+        startInertia();
+      });
+
+      // Start the idle cycle right away — if no mouse touches the page for 10s,
+      // the eyes begin alternating left/right every 10s.
+      scheduleIdle();
     })();
   </script>
 </body>
