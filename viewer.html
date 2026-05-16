@@ -337,6 +337,112 @@
     #annot-popup input:focus, #annot-popup textarea:focus { border-color: #007AFF; }
     .annot-popup-btns { display: flex; gap: 6px; justify-content: flex-end; }
 
+    /* ── SHARE POPOVER (non-blocking dropdown from the 공유 button) ── */
+    .share-popover {
+      position: fixed;
+      z-index: 600;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 234px;
+      transform-origin: top right;
+      animation: share-pop-in 0.16s ease-out;
+    }
+    @keyframes share-pop-in {
+      from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    #share-qr {
+      padding: 8px;
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 8px;
+      line-height: 0;
+      cursor: zoom-in;
+      transition: transform 0.12s;
+    }
+    #share-qr:hover { transform: scale(1.02); }
+    #share-qr canvas, #share-qr img {
+      display: block;
+      width: 180px !important;
+      height: 180px !important;
+    }
+
+    /* QR full-screen zoom (handing it to someone to scan) */
+    .qr-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 700;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+      animation: qr-fade-in 0.2s ease-out;
+    }
+    @keyframes qr-fade-in {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    #qr-overlay-inner {
+      padding: 28px;
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      line-height: 0;
+    }
+    #qr-overlay-inner canvas, #qr-overlay-inner img {
+      display: block;
+      width: min(70vmin, 480px) !important;
+      height: min(70vmin, 480px) !important;
+    }
+    .share-url-box {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.04);
+      border-radius: 8px;
+      padding: 6px 6px 6px 10px;
+      font-size: 0.7rem;
+      color: #6e6e73;
+    }
+    .share-url-box .share-url {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      user-select: text;
+    }
+    .share-url-copy {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: #6e6e73;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+      transition: background 0.12s, color 0.12s;
+    }
+    .share-url-copy:hover { background: rgba(0, 0, 0, 0.06); color: #1d1d1f; }
+    .share-url-copy.copied { color: #007AFF; }
+    .share-url-copy svg { display: block; }
+
     /* ── ANNOTATION FAB ── */
     #annot-fab-area {
       position: fixed;
@@ -410,12 +516,13 @@
   <button class="btn"    id="btn-scroll">스크롤</button>
   <button class="btn on" id="btn-spread">펼침</button>
   <div class="sep"></div>
-  <button class="btn on" id="btn-anim">모션</button>
+  <button class="btn" id="btn-anim">모션</button>
   <div class="sep"></div>
   <button class="btn"    data-size="0.60">S</button>
   <button class="btn on" data-size="0.80">M</button>
   <button class="btn"    data-size="0.97">L</button>
   <div class="sep"></div>
+  <button class="btn" id="btn-share">공유</button>
   <button class="btn icon" id="btn-fs" title="전체화면">⛶</button>
 </div>
 
@@ -451,7 +558,25 @@
   <button id="btn-annot-fab">✏ 메모 달기</button>
 </div>
 
+<div id="share-modal" class="share-popover" style="display:none">
+  <div id="share-qr" title="크게 보기"></div>
+  <div class="share-url-box">
+    <span class="share-url" id="share-url"></span>
+    <button class="share-url-copy" id="share-copy" type="button" title="URL 복사" aria-label="URL 복사">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="9" y="9" width="13" height="13" rx="2"/>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div id="qr-overlay" class="qr-overlay" style="display:none">
+  <div id="qr-overlay-inner"></div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 (function () {
   'use strict';
@@ -472,7 +597,7 @@
   let totalPages = 0;
   let curPage    = 1;    // GLOBAL page index across all loaded PDFs
   let spread     = true;
-  let animOn     = true;
+  let animOn     = false;
   let scrollMode = false;
   let isMobile   = window.innerWidth <= 700;
   let sizeScale  = 0.80;
@@ -489,7 +614,8 @@
 
   const pageCache = {};   // `${n}_${sizeScale}` → canvas
   let scrollObserver = null;
-  let navGen = 0;         // incremented each navigate(); lets runTurn detect stale calls
+  let displayedPage = 1;  // page currently shown after the last completed runTurn
+  let navGen = 0;         // incremented on every navigate(); stale runTurns self-abort
 
   const DPR = window.devicePixelRatio || 1;
 
@@ -625,6 +751,7 @@
       slotLeft.style.height = '';
       sizeEmptyBox(slotRight, lc);
       renderAnnotsOnSlot(slotLeft, page);
+      displayedPage = page;
       updateUI();
       prefetch(page);
       return;
@@ -642,6 +769,7 @@
     slotRight.style.height = '';
     renderAnnotsOnSlot(slotRight, page);
     if (showLeft) renderAnnotsOnSlot(slotLeft, page - 1);
+    displayedPage = page;
     updateUI();
     prefetch(page);
   }
@@ -719,31 +847,48 @@
   /* ── Book-turn animations (take prevPage to get old content from cache) ── */
   const DUR = 200;
 
-  async function animForward(prevPage, newLc, newRc) {
+  async function animForward(prevPage, newLc, newRc, gen) {
     const oldRc = pageCache[cacheKey(prevPage)];
+    // Entering orphan state: newRc is null but we still want a page-shaped
+    // box for the old-page collapse to play out against.
+    if (!newRc && newLc) sizeEmptyBox(slotRight, newLc);
     mountCanvas(slotRight, newRc);
     if (oldRc)  await collapseOv(makeOverlay(oldRc, slotRight), 'left center', DUR);
+    if (gen !== navGen) return;
     if (newLc) {
       const ov = makeOverlay(newLc, slotLeft);
       await growOv(ov, 'right center', DUR);
+      if (gen !== navGen) return;
       mountCanvas(slotLeft, newLc);
     }
   }
 
-  async function animBackward(prevPage, newPage, newLc, newRc) {
-    const oldLc = pageCache[cacheKey(prevPage - 1)];
+  async function animBackward(prevPage, newPage, newLc, newRc, gen, prevWasOrphan) {
+    // When leaving an orphan spread, the page on slotLeft was prevPage itself,
+    // not prevPage - 1.
+    const oldLc = prevWasOrphan
+      ? pageCache[cacheKey(prevPage)]
+      : pageCache[cacheKey(prevPage - 1)];
     if (newLc) mountCanvas(slotLeft, newLc);
     updateLeftSlot(newPage, newRc);
     if (oldLc && spread && !isMobile)
       await collapseOv(makeOverlay(oldLc, slotLeft), 'right center', DUR);
+    if (gen !== navGen) return;
     if (newRc) {
       const ov = makeOverlay(newRc, slotRight);
       await growOv(ov, 'left center', DUR);
+      if (gen !== navGen) return;
       mountCanvas(slotRight, newRc);
+      if (prevWasOrphan) {
+        // The orphan box had inline width/height; clear so the new canvas
+        // sizes the slot naturally.
+        slotRight.style.width  = '';
+        slotRight.style.height = '';
+      }
     }
   }
 
-  async function animSingle(prevPage, newRc, direction) {
+  async function animSingle(prevPage, newRc, direction, gen) {
     const oldRc = pageCache[cacheKey(prevPage)];
     mountCanvas(slotRight, newRc);
     if (direction === 'forward') {
@@ -753,17 +898,22 @@
         const ov = makeOverlay(newRc, slotRight);
         if (oldRc) mountCanvas(slotRight, oldRc);
         await growOv(ov, 'right center', DUR);
+        if (gen !== navGen) return;
         mountCanvas(slotRight, newRc);
       }
     }
   }
 
-  /* ── Navigation: fire-and-forget, each press starts immediately ── */
+  /* ── Navigation ──
+     Each press fires a runTurn immediately (no serialization, no debounce).
+     A monotonic navGen counter tags each press; stale runTurns abort at the
+     next await before mutating the DOM, so rapid presses can't race-trample
+     each other. prevPage = displayedPage (the last fully-rendered page) so
+     the animation always starts from what the user actually sees. */
   function navigate(direction) {
     if (scrollMode) { doScrollNav(direction); return; }
     const sl   = spread && !isMobile;
     const step = sl ? 2 : 1;
-    const prevPage = curPage;
 
     let newPage;
     if (direction === 'forward') {
@@ -775,11 +925,13 @@
     }
 
     curPage = newPage;
+    navGen++;
+    const myGen = navGen;
     updateUI();
-    runTurn(direction, prevPage, newPage); // no await — runs in parallel with any ongoing animation
+    runTurn(direction, displayedPage, newPage, myGen);
   }
 
-  async function runTurn(direction, prevPage, newPage) {
+  async function runTurn(direction, prevPage, newPage, gen) {
     const sl = spread && !isMobile;
     const orphan = isOrphanLast(newPage);
     const prevWasOrphan = isOrphanLast(prevPage);
@@ -793,9 +945,11 @@
           renderPage(newPage)
         ]);
 
-    // Snap (no flip animation) when crossing into/out of orphan state — the
-    // flip animation assumes both slots have a real canvas.
-    if (!animOn || orphan || prevWasOrphan) {
+    // A newer navigate has happened while we were rendering — drop this run
+    // so it doesn't trample the latest DOM state.
+    if (gen !== navGen) return;
+
+    if (!animOn) {
       mountCanvas(slotLeft,  newLc);
       mountCanvas(slotRight, newRc);
       if (orphan) {
@@ -810,19 +964,30 @@
         renderAnnotsOnSlot(slotRight, newPage);
         if (sl) renderAnnotsOnSlot(slotLeft, newPage - 1);
       }
+      displayedPage = newPage;
       prefetch(newPage);
       return;
     }
 
     if (sl) {
-      if (direction === 'forward') await animForward(prevPage, newLc, newRc);
-      else                          await animBackward(prevPage, newPage, newLc, newRc);
+      if (direction === 'forward') await animForward(prevPage, newLc, newRc, gen);
+      else                          await animBackward(prevPage, newPage, newLc, newRc, gen, prevWasOrphan);
     } else {
-      await animSingle(prevPage, newRc, direction);
+      await animSingle(prevPage, newRc, direction, gen);
     }
-    updateLeftSlot(newPage, newRc);
-    renderAnnotsOnSlot(slotRight, newPage);
-    if (sl) renderAnnotsOnSlot(slotLeft, newPage - 1);
+    if (gen !== navGen) return;
+    if (orphan) {
+      slotLeft.style.width  = '';
+      slotLeft.style.height = '';
+      renderAnnotsOnSlot(slotLeft, newPage);
+    } else {
+      slotRight.style.width  = '';
+      slotRight.style.height = '';
+      updateLeftSlot(newPage, newRc);
+      renderAnnotsOnSlot(slotRight, newPage);
+      if (sl) renderAnnotsOnSlot(slotLeft, newPage - 1);
+    }
+    displayedPage = newPage;
     prefetch(newPage);
   }
 
@@ -1167,6 +1332,10 @@
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (annotPopup.style.display !== 'none') { annotPopup.style.display = 'none'; pendingAnnot = null; }
+    const qrOv = document.getElementById('qr-overlay');
+    if (qrOv && qrOv.style.display !== 'none') { qrOv.style.display = 'none'; return; }
+    const shareEl = document.getElementById('share-modal');
+    if (shareEl && shareEl.style.display !== 'none') shareEl.style.display = 'none';
   });
 
   function showAnnotPopup(clientX, clientY, pageNum, xPct, yPct) {
@@ -1311,7 +1480,9 @@
   document.getElementById('hit-prev').addEventListener('click', () => navigate('backward'));
 
   document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const shareEl = document.getElementById('share-modal');
+    if (shareEl && shareEl.style.display !== 'none') return;
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate('forward');
     if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')  navigate('backward');
   });
@@ -1400,6 +1571,108 @@
     preloading = false;
     if (scrollMode) rebuildScroll();
     else { await display(curPage); preloadAll(); }
+  });
+
+  /* 공유 popover: 비차단 dropdown, 공유 버튼 아래에 앵커 */
+  const sharePopover = document.getElementById('share-modal');
+  const shareQrEl    = document.getElementById('share-qr');
+  const shareUrlEl   = document.getElementById('share-url');
+  const btnShare     = document.getElementById('btn-share');
+  const btnShareCopy = document.getElementById('share-copy');
+
+  function positionPopover() {
+    const rect = btnShare.getBoundingClientRect();
+    sharePopover.style.top   = (rect.bottom + 8) + 'px';
+    sharePopover.style.right = (window.innerWidth - rect.right) + 'px';
+  }
+  function openSharePopover() {
+    const url = location.href;
+    shareUrlEl.textContent = url;
+    shareUrlEl.title       = url;
+    shareQrEl.innerHTML    = '';
+    if (window.QRCode) {
+      new QRCode(shareQrEl, {
+        text: url,
+        width: 180,
+        height: 180,
+        colorDark:  '#1d1d1f',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } else {
+      shareQrEl.textContent = 'QR 라이브러리 로드 실패';
+    }
+    btnShareCopy.classList.remove('copied');
+    btnShareCopy.title = 'URL 복사';
+    positionPopover();
+    sharePopover.style.display = 'flex';
+  }
+  function closeSharePopover() { sharePopover.style.display = 'none'; }
+  function isShareOpen() { return sharePopover.style.display !== 'none'; }
+
+  btnShare.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (isShareOpen()) closeSharePopover();
+    else openSharePopover();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!isShareOpen()) return;
+    if (sharePopover.contains(e.target)) return;
+    if (btnShare.contains(e.target)) return;
+    closeSharePopover();
+  });
+
+  window.addEventListener('resize', () => {
+    if (isShareOpen()) positionPopover();
+  });
+
+  btnShareCopy.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(location.href);
+      btnShareCopy.classList.add('copied');
+      btnShareCopy.title = '복사됨';
+      setTimeout(() => {
+        btnShareCopy.classList.remove('copied');
+        btnShareCopy.title = 'URL 복사';
+      }, 1500);
+    } catch {
+      const range = document.createRange();
+      range.selectNode(shareUrlEl);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+    }
+  });
+
+  /* QR 확대 오버레이 (다른 사람이 찍기 쉽도록) */
+  const qrOverlay      = document.getElementById('qr-overlay');
+  const qrOverlayInner = document.getElementById('qr-overlay-inner');
+
+  function openQrOverlay() {
+    qrOverlayInner.innerHTML = '';
+    if (window.QRCode) {
+      new QRCode(qrOverlayInner, {
+        text: location.href,
+        width: 480,
+        height: 480,
+        colorDark:  '#1d1d1f',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+    qrOverlay.style.display = 'flex';
+  }
+  function closeQrOverlay() { qrOverlay.style.display = 'none'; }
+  function isQrOpen() { return qrOverlay.style.display !== 'none'; }
+
+  shareQrEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openQrOverlay();
+  });
+  qrOverlay.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeQrOverlay();
   });
 
   /* Auto-hide bars */
