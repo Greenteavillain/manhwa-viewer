@@ -157,6 +157,7 @@
     body.single #spine     { display: none; }
     body.single #slot-right { border-radius: 4px; }
 
+
     /* ── INFO CARD (left slot, page 1) ── */
     .info-card {
       width: 100%; height: 100%;
@@ -523,6 +524,14 @@
     document.body.classList.toggle('single', !(spread && !isMobile) || scrollMode);
   }
 
+  // Even-total book in spread mode: the last page can't pair, so it's shown alone.
+  function isOrphanLast(page) {
+    return spread && !isMobile && !scrollMode
+        && totalPages > 1
+        && page === totalPages
+        && totalPages % 2 === 0;
+  }
+
   /* ── Render page → HiDPI canvas ── */
   async function renderPage(pageNum) {
     if (!pageNum || pageNum < 1 || pageNum > totalPages) return null;
@@ -604,6 +613,23 @@
   /* ── Display (no animation) ── */
   async function display(page) {
     const showLeft = spread && !isMobile;
+    const orphan = isOrphanLast(page);
+
+    if (orphan) {
+      // Lone last page sits on slotLeft. slotRight becomes a page-sized empty
+      // box (mirror of the cover spread's info card on slotLeft for page 1).
+      const lc = await renderPage(page);
+      mountCanvas(slotLeft, lc);
+      mountCanvas(slotRight, null);
+      slotLeft.style.width  = '';
+      slotLeft.style.height = '';
+      sizeEmptyBox(slotRight, lc);
+      renderAnnotsOnSlot(slotLeft, page);
+      updateUI();
+      prefetch(page);
+      return;
+    }
+
     const [lc, rc] = await Promise.all([
       showLeft ? renderPage(page - 1) : null,
       renderPage(page)
@@ -611,10 +637,21 @@
     mountCanvas(slotLeft,  lc);
     mountCanvas(slotRight, rc);
     updateLeftSlot(page, rc);
+    // Leaving orphan: clear inline size so the canvas sizes the slot naturally.
+    slotRight.style.width  = '';
+    slotRight.style.height = '';
     renderAnnotsOnSlot(slotRight, page);
     if (showLeft) renderAnnotsOnSlot(slotLeft, page - 1);
     updateUI();
     prefetch(page);
+  }
+
+  function sizeEmptyBox(slot, sourceCanvas) {
+    if (!sourceCanvas) return;
+    const csW = parseInt(sourceCanvas.style.width)  || Math.round(sourceCanvas.width  / DPR);
+    const csH = parseInt(sourceCanvas.style.height) || Math.round(sourceCanvas.height / DPR);
+    slot.style.width  = csW + 'px';
+    slot.style.height = csH + 'px';
   }
 
   function prefetch(page) {
@@ -630,7 +667,9 @@
 
   function updateUI() {
     const sl = spread && !isMobile && !scrollMode;
-    if (sl && curPage - 1 >= 1) {
+    if (isOrphanLast(curPage)) {
+      pageIndicator.textContent = `${curPage} / ${totalPages}`;
+    } else if (sl && curPage - 1 >= 1) {
       pageIndicator.textContent = `${curPage - 1}–${curPage} / ${totalPages}`;
     } else {
       pageIndicator.textContent = `${curPage} / ${totalPages}`;
@@ -742,17 +781,35 @@
 
   async function runTurn(direction, prevPage, newPage) {
     const sl = spread && !isMobile;
-    const [newLc, newRc] = await Promise.all([
-      sl ? renderPage(newPage - 1) : null,
-      renderPage(newPage)
-    ]);
+    const orphan = isOrphanLast(newPage);
+    const prevWasOrphan = isOrphanLast(prevPage);
 
-    if (!animOn) {
+    // Orphan layout: lone last page on slotLeft, slotRight becomes a page-sized
+    // empty box. Otherwise: left=page-1, right=page.
+    const [newLc, newRc] = orphan
+      ? [await renderPage(newPage), null]
+      : await Promise.all([
+          sl ? renderPage(newPage - 1) : null,
+          renderPage(newPage)
+        ]);
+
+    // Snap (no flip animation) when crossing into/out of orphan state — the
+    // flip animation assumes both slots have a real canvas.
+    if (!animOn || orphan || prevWasOrphan) {
       mountCanvas(slotLeft,  newLc);
       mountCanvas(slotRight, newRc);
-      updateLeftSlot(newPage, newRc);
-      renderAnnotsOnSlot(slotRight, newPage);
-      if (sl) renderAnnotsOnSlot(slotLeft, newPage - 1);
+      if (orphan) {
+        slotLeft.style.width  = '';
+        slotLeft.style.height = '';
+        sizeEmptyBox(slotRight, newLc);
+        renderAnnotsOnSlot(slotLeft, newPage);
+      } else {
+        slotRight.style.width  = '';
+        slotRight.style.height = '';
+        updateLeftSlot(newPage, newRc);
+        renderAnnotsOnSlot(slotRight, newPage);
+        if (sl) renderAnnotsOnSlot(slotLeft, newPage - 1);
+      }
       prefetch(newPage);
       return;
     }
@@ -1021,8 +1078,12 @@
 
   function refreshAnnotsOnPage(globalPageNum) {
     if (!scrollMode) {
-      renderAnnotsOnSlot(slotRight, curPage);
-      if (spread && !isMobile) renderAnnotsOnSlot(slotLeft, curPage - 1);
+      if (isOrphanLast(curPage)) {
+        renderAnnotsOnSlot(slotLeft, curPage);
+      } else {
+        renderAnnotsOnSlot(slotRight, curPage);
+        if (spread && !isMobile) renderAnnotsOnSlot(slotLeft, curPage - 1);
+      }
     } else {
       const wrap = scrollInner.querySelector(`[data-page-num="${globalPageNum}"]`);
       if (wrap && wrap.dataset.rendered) renderAnnotsOnWrap(wrap, globalPageNum);
@@ -1130,7 +1191,9 @@
   annotOverlay.addEventListener('click', e => {
     const sl = spread && !isMobile;
     let slot, pageNum;
-    if (sl && slotLeft.querySelector('canvas')) {
+    if (isOrphanLast(curPage)) {
+      slot = slotLeft; pageNum = curPage;
+    } else if (sl && slotLeft.querySelector('canvas')) {
       const leftRect = slotLeft.getBoundingClientRect();
       if (e.clientX <= leftRect.right) { slot = slotLeft; pageNum = curPage - 1; }
       else                               { slot = slotRight; pageNum = curPage; }
