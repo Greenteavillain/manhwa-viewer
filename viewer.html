@@ -4,14 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>뷰어</title>
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       width: 100%; height: 100%;
-      background: #0a0a0a;
-      color: #e0e0e0;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       overflow: hidden;
       user-select: none;
     }
@@ -21,13 +23,14 @@
       position: fixed;
       top: 0; left: 0; right: 0;
       height: 48px;
-      background: rgba(10,10,10,0.95);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid #222;
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.12);
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 0 10px;
+      padding: 0 12px;
       z-index: 200;
       transition: opacity 0.3s;
     }
@@ -36,7 +39,9 @@
     #title-label {
       flex: 1;
       font-size: 0.82rem;
-      color: #888;
+      font-weight: 500;
+      color: #3a3a3c;
+      letter-spacing: -0.1px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -44,54 +49,69 @@
     }
     #page-indicator {
       font-size: 0.75rem;
-      color: #666;
+      color: #6e6e73;
       white-space: nowrap;
       flex-shrink: 0;
     }
     #preload-badge {
       font-size: 0.7rem;
-      color: #555;
+      color: #8e8e93;
       white-space: nowrap;
       flex-shrink: 0;
     }
 
     .btn {
-      background: #1e1e1e;
-      border: 1px solid #333;
-      color: #bbb;
-      border-radius: 5px;
-      padding: 3px 8px;
+      background: rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      color: #3a3a3c;
+      border-radius: 6px;
+      padding: 4px 9px;
       cursor: pointer;
       font-size: 0.75rem;
+      font-family: inherit;
       white-space: nowrap;
       flex-shrink: 0;
       transition: background 0.12s, color 0.12s, border-color 0.12s;
       line-height: 1.5;
     }
-    .btn:hover { background: #2a2a2a; color: #fff; }
-    .btn.on { background: #2e2060; border-color: #7c6af7; color: #c4b5fd; }
-    .btn.icon { padding: 3px 7px; font-size: 0.9rem; }
+    .btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+      color: #1d1d1f;
+      border-color: rgba(0, 0, 0, 0.2);
+    }
+    .btn.on {
+      background: #007AFF;
+      border-color: #007AFF;
+      color: #fff;
+    }
+    .btn.on:hover {
+      background: #006fe0;
+      border-color: #006fe0;
+      color: #fff;
+    }
+    .btn.icon { padding: 4px 8px; font-size: 0.9rem; }
 
-    .sep { width: 1px; height: 20px; background: #2a2a2a; flex-shrink: 0; }
+    .sep { width: 1px; height: 18px; background: rgba(0, 0, 0, 0.12); flex-shrink: 0; }
 
     /* ── BOTTOM BAR ── */
     #bottombar {
       position: fixed;
       bottom: 0; left: 0; right: 0;
       height: 36px;
-      background: rgba(10,10,10,0.92);
-      backdrop-filter: blur(12px);
-      border-top: 1px solid #222;
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-top: 1px solid rgba(0, 0, 0, 0.12);
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 0 10px;
+      padding: 0 12px;
       z-index: 200;
       transition: opacity 0.3s;
     }
     #bottombar.hidden { opacity: 0; pointer-events: none; }
-    #progress { flex: 1; height: 4px; background: #2a2a2a; border-radius: 2px; cursor: pointer; }
-    #progress-fill { height: 100%; background: #7c6af7; border-radius: 2px; transition: width 0.25s; }
+    #progress { flex: 1; height: 4px; background: rgba(0, 0, 0, 0.08); border-radius: 2px; cursor: pointer; }
+    #progress-fill { height: 100%; background: #007AFF; border-radius: 2px; transition: width 0.25s; }
 
     /* ── STAGE ── */
     #stage {
@@ -109,11 +129,11 @@
     .page-slot {
       position: relative;
       overflow: visible;
-      background: #111;
+      background: #fff;
       flex-shrink: 0;
     }
-    #slot-left  { border-radius: 4px 0 0 4px; box-shadow: -4px 0 20px rgba(0,0,0,0.8); }
-    #slot-right { border-radius: 0 4px 4px 0; box-shadow:  4px 0 20px rgba(0,0,0,0.8); }
+    #slot-left  { border-radius: 4px 0 0 4px; box-shadow: -2px 0 12px rgba(0, 0, 0, 0.1); }
+    #slot-right { border-radius: 0 4px 4px 0; box-shadow:  2px 0 12px rgba(0, 0, 0, 0.1); }
     .page-slot canvas { display: block; }
 
     .page-overlay {
@@ -124,8 +144,8 @@
     .page-overlay canvas { display: block; width: 100%; height: 100%; }
 
     #spine {
-      width: 4px; align-self: stretch;
-      background: linear-gradient(90deg,#000 0%,#1a1a1a 50%,#000 100%);
+      width: 2px; align-self: stretch;
+      background: linear-gradient(90deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.18) 50%, rgba(0,0,0,0.06) 100%);
       flex-shrink: 0; z-index: 5;
     }
 
@@ -144,33 +164,35 @@
       flex-direction: column;
       justify-content: flex-end;
       padding: 2rem 2rem 2.5rem;
-      background: linear-gradient(160deg, #0c0c18 0%, #130c1e 60%, #1a0f2a 100%);
+      background: linear-gradient(160deg, #ffffff 0%, #f2f2f5 60%, #e6e6eb 100%);
       overflow: hidden;
     }
     .ic-genre {
       font-size: 0.65rem;
-      color: #7c6af7;
+      color: #007AFF;
+      font-weight: 700;
       letter-spacing: 3px;
       text-transform: uppercase;
       margin-bottom: 1rem;
     }
     .ic-title {
       font-size: clamp(1.1rem, 2.5vw, 2rem);
-      font-weight: 800;
-      color: #fff;
+      font-weight: 700;
+      color: #1d1d1f;
+      letter-spacing: -0.3px;
       line-height: 1.2;
       margin-bottom: 0.4rem;
       word-break: keep-all;
     }
     .ic-author {
       font-size: 0.8rem;
-      color: #777;
+      color: #6e6e73;
       margin-bottom: 1.5rem;
     }
-    .ic-divider { width: 28px; height: 2px; background: #7c6af7; margin-bottom: 1.2rem; }
+    .ic-divider { width: 28px; height: 2px; background: #007AFF; margin-bottom: 1.2rem; }
     .ic-desc {
       font-size: 0.77rem;
-      color: #777;
+      color: #6e6e73;
       line-height: 1.7;
       margin-bottom: 1.5rem;
       display: -webkit-box;
@@ -179,8 +201,8 @@
       overflow: hidden;
     }
     .ic-meta { display: flex; flex-direction: column; gap: 0.3rem; }
-    .ic-row { font-size: 0.7rem; color: #555; display: flex; gap: 0.6rem; }
-    .ic-lbl { color: #3d3d3d; min-width: 36px; }
+    .ic-row { font-size: 0.7rem; color: #6e6e73; display: flex; gap: 0.6rem; }
+    .ic-lbl { color: #a1a1a6; min-width: 36px; }
 
     /* ── SCROLL MODE ── */
     #scroll-view {
@@ -194,13 +216,15 @@
       flex-direction: column;
       align-items: center;
       padding: 20px 0 40px;
-      gap: 8px;
+      gap: 12px;
     }
     .scroll-page-wrap {
       position: relative;
       flex-shrink: 0;
-      background: #111;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
     }
     .scroll-page-wrap canvas { display: block; }
     .scroll-page-wrap .sp-loader {
@@ -209,12 +233,12 @@
     }
     .mini-spinner {
       width: 24px; height: 24px;
-      border: 2px solid #333; border-top-color: #7c6af7;
+      border: 2px solid rgba(0, 0, 0, 0.08); border-top-color: #007AFF;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
 
-    /* ── ANNOTATIONS ── */
+    /* ── ANNOTATIONS (post-it 메타포는 유지) ── */
     .annot-note {
       position: absolute;
       width: 148px;
@@ -223,7 +247,7 @@
       border-radius: 0 6px 6px 0;
       padding: 5px 8px 5px 7px;
       z-index: 160;
-      box-shadow: 2px 3px 14px rgba(0,0,0,0.55);
+      box-shadow: 2px 3px 14px rgba(0, 0, 0, 0.18);
       color: #333;
       line-height: 1.45;
       pointer-events: auto;
@@ -255,31 +279,35 @@
 
     #annot-popup {
       position: fixed;
-      background: #1c1c1c;
-      border: 1px solid #3a3a3a;
-      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
       padding: 14px;
       z-index: 500;
       width: 230px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
       display: none;
     }
     #annot-popup input, #annot-popup textarea {
       width: 100%;
-      background: #111;
-      border: 1px solid #333;
-      color: #ddd;
-      border-radius: 5px;
-      padding: 6px 8px;
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      color: #1d1d1f;
+      border-radius: 6px;
+      padding: 7px 9px;
       font-size: 0.78rem;
       font-family: inherit;
       box-sizing: border-box;
       outline: none;
+      transition: border-color 0.12s;
     }
+    #annot-popup input::placeholder, #annot-popup textarea::placeholder { color: #a1a1a6; }
     #annot-popup input { margin-bottom: 8px; }
     #annot-popup textarea { height: 72px; resize: none; margin-bottom: 8px; }
     #annot-password { margin-bottom: 8px; }
-    #annot-popup input:focus, #annot-popup textarea:focus { border-color: #7c6af7; }
+    #annot-popup input:focus, #annot-popup textarea:focus { border-color: #007AFF; }
     .annot-popup-btns { display: flex; gap: 6px; justify-content: flex-end; }
 
     /* ── ANNOTATION FAB ── */
@@ -290,32 +318,39 @@
       z-index: 300;
     }
     #btn-annot-fab {
-      background: #7c6af7;
+      background: #007AFF;
       color: #fff;
       border: none; border-radius: 28px;
       padding: 11px 20px;
-      font-size: 0.9rem; font-weight: 700;
+      font-size: 0.88rem; font-weight: 600;
       cursor: pointer; font-family: inherit;
-      box-shadow: 0 4px 20px rgba(124,106,247,0.55);
-      transition: background 0.12s, transform 0.12s;
+      box-shadow: 0 4px 16px rgba(0, 122, 255, 0.35);
+      transition: background 0.12s, transform 0.12s, box-shadow 0.12s;
       white-space: nowrap;
     }
-    #btn-annot-fab:hover { background: #6b59e0; transform: scale(1.04); }
-    #btn-annot-fab.on { background: #3d2d99; box-shadow: 0 2px 10px rgba(61,45,153,0.5); }
+    #btn-annot-fab:hover { background: #006fe0; transform: scale(1.04); }
+    #btn-annot-fab.on {
+      background: #6e6e73;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
     #btn-notes-vis {
-      background: rgba(20,20,20,0.85);
-      color: #888; border: 1px solid #333; border-radius: 16px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #6e6e73;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 16px;
       padding: 5px 12px; font-size: 0.72rem;
       cursor: pointer; font-family: inherit; white-space: nowrap;
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
       transition: background 0.12s, color 0.12s, border-color 0.12s;
     }
-    #btn-notes-vis:hover { background: #2a2a2a; color: #fff; }
-    #btn-notes-vis.notes-off { color: #7c6af7; border-color: #7c6af7; }
+    #btn-notes-vis:hover { background: rgba(0, 0, 0, 0.04); color: #1d1d1f; }
+    #btn-notes-vis.notes-off { color: #007AFF; border-color: #007AFF; }
 
     /* ── LOADER ── */
     #loader {
       position: fixed; inset: 0;
-      background: #0a0a0a;
+      background: #ffffff;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       z-index: 999; gap: 1rem;
@@ -323,12 +358,12 @@
     #loader.done { display: none; }
     .big-spinner {
       width: 48px; height: 48px;
-      border: 4px solid #222; border-top-color: #7c6af7;
+      border: 4px solid rgba(0, 0, 0, 0.08); border-top-color: #007AFF;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    #load-text { color: #666; font-size: 0.85rem; }
+    #load-text { color: #6e6e73; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -398,18 +433,32 @@
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
   const params = new URLSearchParams(location.search);
-  const pdfUrl = params.get('pdf');
-  const title  = params.get('title') || 'PDF 뷰어';
+  const pdfUrl     = params.get('pdf');
+  const genreParam = params.get('genre');
+  const isCombined = !!genreParam;
+  const title      = params.get('title') || genreParam || 'PDF 뷰어';
 
-  let pdfDoc     = null;
+  let pdfDocs    = [];   // pdfjs documents (length 1 in single mode, N in combined)
+  let pdfFiles   = [];   // matching array of pdf URLs
+  let bookItems  = [];   // matching array of manifest entries (for per-book titles)
+  let pageOffsets= [0];  // cumulative; pageOffsets[i] = pages before doc i, pageOffsets[N] = totalPages
   let totalPages = 0;
-  let curPage    = 1;
+  let curPage    = 1;    // GLOBAL page index across all loaded PDFs
   let spread     = true;
   let animOn     = true;
   let scrollMode = false;
   let isMobile   = window.innerWidth <= 700;
   let sizeScale  = 0.80;
   let bookMeta   = null;
+
+  function resolvePage(globalPage) {
+    for (let i = 0; i < pdfDocs.length; i++) {
+      if (globalPage > pageOffsets[i] && globalPage <= pageOffsets[i + 1]) {
+        return { docIdx: i, localPage: globalPage - pageOffsets[i] };
+      }
+    }
+    return null;
+  }
 
   const pageCache = {};   // `${n}_${sizeScale}` → canvas
   let scrollObserver = null;
@@ -454,7 +503,9 @@
     const key = cacheKey(pageNum);
     if (pageCache[key]) return pageCache[key];
 
-    const page = await pdfDoc.getPage(pageNum);
+    const r = resolvePage(pageNum);
+    if (!r) return null;
+    const page = await pdfDocs[r.docIdx].getPage(r.localPage);
     const h = stageH(), w = stageW();
     const vp0 = page.getViewport({ scale: 1 });
     const maxH = h * sizeScale;
@@ -509,7 +560,7 @@
     const t = m.title || title;
     const rows = [
       m.author ? `<div class="ic-row"><span class="ic-lbl">글·그림</span>${esc(m.author)}</div>` : '',
-      m.genre  ? `<div class="ic-row"><span class="ic-lbl">장르</span>${esc(m.genre)}</div>` : '',
+      m.genre  ? `<div class="ic-row"><span class="ic-lbl">카테고리</span>${esc(m.genre)}</div>` : '',
       m.date   ? `<div class="ic-row"><span class="ic-lbl">출판</span>${esc(m.date)}</div>` : '',
       totalPages ? `<div class="ic-row"><span class="ic-lbl">분량</span>${totalPages}p</div>` : '',
     ].filter(Boolean).join('');
@@ -560,6 +611,13 @@
     }
     const pct = ((curPage - 1) / Math.max(totalPages - 1, 1)) * 100;
     progressFill.style.width = pct + '%';
+
+    // In combined mode, show "장르 — 현재 작품" so the reader knows which book they're in
+    if (isCombined) {
+      const r = resolvePage(curPage);
+      const bookTitle = r && bookItems[r.docIdx] ? bookItems[r.docIdx].title : '';
+      titleLabel.textContent = bookTitle ? `${genreParam} — ${bookTitle}` : genreParam;
+    }
   }
 
   /* ── Overlay helpers ── */
@@ -747,7 +805,9 @@
     wrap.dataset.rendered = '1';
     const pageNum = parseInt(wrap.dataset.pageNum);
     try {
-      const page     = await pdfDoc.getPage(pageNum);
+      const r = resolvePage(pageNum);
+      if (!r) throw new Error('out of range');
+      const page     = await pdfDocs[r.docIdx].getPage(r.localPage);
       const vp0      = page.getViewport({ scale: 1 });
       const maxHcss  = Math.floor(stageH() * sizeScale);
       const maxWcss  = stageW() - 8;
@@ -882,23 +942,35 @@
   let annotMode   = false;
   let annotations = [];
 
+  function attachGlobalPage(a) {
+    const idx = pdfFiles.indexOf(a.pdf_file);
+    a._globalPage = idx >= 0 ? pageOffsets[idx] + a.page_number : a.page_number;
+    return a;
+  }
+
   async function loadAnnotations() {
     try {
-      const rows = await sbFetch(`annotations?pdf_file=eq.${encodeURIComponent(pdfUrl)}&order=created_at.asc`);
-      annotations = Array.isArray(rows) ? rows : [];
+      if (!pdfFiles.length) { annotations = []; return; }
+      const results = await Promise.all(
+        pdfFiles.map(f => sbFetch(`annotations?pdf_file=eq.${encodeURIComponent(f)}&order=created_at.asc`))
+      );
+      annotations = results.flat().map(attachGlobalPage);
     } catch { annotations = []; }
   }
 
-  async function saveAnnotation(pageNum, xPct, yPct, author, content, password = '') {
+  async function saveAnnotation(globalPageNum, xPct, yPct, author, content, password = '') {
+    const r = resolvePage(globalPageNum);
+    if (!r) return;
+    const pdfFile = pdfFiles[r.docIdx];
     try {
       const rows = await sbFetch('annotations', {
         method: 'POST',
         headers: { 'Prefer': 'return=representation' },
-        body: JSON.stringify({ pdf_file: pdfUrl, page_number: pageNum, x_pct: xPct, y_pct: yPct, author: author || '익명', content, password })
+        body: JSON.stringify({ pdf_file: pdfFile, page_number: r.localPage, x_pct: xPct, y_pct: yPct, author: author || '익명', content, password })
       });
       if (Array.isArray(rows) && rows[0]) {
-        annotations.push(rows[0]);
-        refreshAnnotsOnPage(pageNum);
+        annotations.push(attachGlobalPage(rows[0]));
+        refreshAnnotsOnPage(globalPageNum);
       }
     } catch(err) {
       console.error('메모 저장 실패:', err);
@@ -909,38 +981,38 @@
   async function deleteAnnotation(annot) {
     if (annot.password) {
       const input = prompt('삭제 비밀번호를 입력하세요');
-      if (input === null) return; // 취소
+      if (input === null) return;
       if (input !== annot.password) { alert('비밀번호가 틀렸습니다.'); return; }
     }
     try {
       await sbFetch(`annotations?id=eq.${annot.id}`, { method: 'DELETE' });
       annotations = annotations.filter(a => a.id !== annot.id);
-      refreshAnnotsOnPage(annot.page_number);
+      refreshAnnotsOnPage(annot._globalPage);
     } catch(err) {
       console.error('메모 삭제 실패:', err);
     }
   }
 
-  function refreshAnnotsOnPage(pageNum) {
+  function refreshAnnotsOnPage(globalPageNum) {
     if (!scrollMode) {
       renderAnnotsOnSlot(slotRight, curPage);
       if (spread && !isMobile) renderAnnotsOnSlot(slotLeft, curPage - 1);
     } else {
-      const wrap = scrollInner.querySelector(`[data-page-num="${pageNum}"]`);
-      if (wrap && wrap.dataset.rendered) renderAnnotsOnWrap(wrap, pageNum);
+      const wrap = scrollInner.querySelector(`[data-page-num="${globalPageNum}"]`);
+      if (wrap && wrap.dataset.rendered) renderAnnotsOnWrap(wrap, globalPageNum);
     }
   }
 
   function renderAnnotsOnSlot(slot, pageNum) {
     slot.querySelectorAll('.annot-note').forEach(el => el.remove());
     if (!pageNum || pageNum < 1 || pageNum > totalPages || !slot.querySelector('canvas')) return;
-    annotations.filter(a => a.page_number === pageNum).forEach(a => slot.appendChild(makeAnnotNote(a)));
+    annotations.filter(a => a._globalPage === pageNum).forEach(a => slot.appendChild(makeAnnotNote(a)));
   }
 
   function renderAnnotsOnWrap(wrap, pageNum) {
     wrap.querySelectorAll('.annot-note').forEach(el => el.remove());
     if (!wrap.querySelector('canvas')) return;
-    annotations.filter(a => a.page_number === pageNum).forEach(a => wrap.appendChild(makeAnnotNote(a)));
+    annotations.filter(a => a._globalPage === pageNum).forEach(a => wrap.appendChild(makeAnnotNote(a)));
   }
 
   function makeAnnotNote(annot) {
@@ -1082,31 +1154,56 @@
     btnNotesVis.classList.toggle('notes-off', !notesVisible);
   });
 
-  /* ── Fetch manifest for book meta ── */
-  async function fetchMeta() {
-    try {
-      const items = await fetch('manifest.json').then(r => r.json());
-      bookMeta = items.find(item => item.file === pdfUrl) || null;
-    } catch {}
-  }
-
-  /* ── Load PDF ── */
+  /* ── Load PDF(s) ── */
   async function loadPdf() {
-    if (!pdfUrl) { loadText.textContent = '?pdf= 파라미터가 없습니다.'; return; }
+    if (!pdfUrl && !isCombined) { loadText.textContent = '?pdf= 또는 ?genre= 파라미터가 필요합니다.'; return; }
     try {
-      await fetchMeta();
-      pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-      totalPages = pdfDoc.numPages;
+      // Resolve which PDFs to load
+      let manifestItems = [];
+      try { manifestItems = await fetch('manifest.json').then(r => r.json()); } catch {}
+
+      let targetItems;
+      if (isCombined) {
+        targetItems = manifestItems.filter(it => (it.genre || '기타') === genreParam);
+        if (!targetItems.length) { loadText.textContent = `장르 "${genreParam}"에 해당하는 작품이 없습니다.`; return; }
+        bookMeta = {
+          title: genreParam,
+          genre: genreParam,
+          description: `${targetItems.length}편의 작품을 이어서 봅니다.`
+        };
+      } else {
+        const match = manifestItems.find(it => it.file === pdfUrl);
+        targetItems = [match || { file: pdfUrl, title }];
+        bookMeta = match || null;
+      }
+
+      bookItems = targetItems;
+      pdfFiles  = targetItems.map(it => it.file);
+      loadText.textContent = `PDF 불러오는 중… (${pdfFiles.length}편)`;
+
+      pdfDocs = await Promise.all(pdfFiles.map(f => pdfjsLib.getDocument(f).promise));
+
+      // Build cumulative page offsets
+      pageOffsets = [0];
+      for (const doc of pdfDocs) {
+        pageOffsets.push(pageOffsets[pageOffsets.length - 1] + doc.numPages);
+      }
+      totalPages = pageOffsets[pageOffsets.length - 1];
+
       applyLayout();
       await loadAnnotations();
       await display(1);
       loader.classList.add('done');
+
+      // Log a single visit per open: real file URL in single mode, "genre:..." marker in combined mode
+      const visitTarget = isCombined ? `genre:${genreParam}` : pdfUrl;
       fetch(SB_URL + '/rest/v1/visits', {
         method: 'POST',
         headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdf_file: pdfUrl })
+        body: JSON.stringify({ pdf_file: visitTarget })
       }).catch(() => {});
-      preloadAll(); // background — no await
+
+      preloadAll();
     } catch (e) {
       loadText.textContent = '불러올 수 없습니다: ' + e.message;
     }

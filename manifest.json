@@ -1,11 +1,56 @@
 [
   {
+    "id": "travel_prologue",
+    "title": "여행 프롤로그",
+    "file": "pdfs/여행 프롤로그.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
+    "id": "travel_photo",
+    "title": "여행 사진",
+    "file": "pdfs/여행 사진.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
+    "id": "omelet",
+    "title": "오믈렛",
+    "file": "pdfs/오믈렛.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
     "id": "ikebus",
     "title": "이케버스",
     "file": "pdfs/이케버스.pdf",
-    "description": "신비로운 이케버스의 세계로 오신 것을 환영합니다.",
-    "genre": "판타지",
-    "author": "작가명",
-    "date": "2024"
+    "genre": "말차 소금 여행기"
+  },
+  {
+    "id": "unit_select",
+    "title": "자대 선택",
+    "file": "pdfs/자대 선택.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
+    "id": "ep2",
+    "title": "2화쯤",
+    "file": "pdfs/2화쯤.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
+    "id": "training",
+    "title": "훈련기간",
+    "file": "pdfs/훈련기간.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
+    "id": "sunrise",
+    "title": "해돋이",
+    "file": "pdfs/해돋이.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
+    "id": "mullet",
+    "title": "숭어",
+    "file": "pdfs/숭어.pdf",
+    "genre": "소미도 근무일지"
   }
 ]

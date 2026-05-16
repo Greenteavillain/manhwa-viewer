@@ -4,47 +4,135 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>만화 라이브러리</title>
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: #0d0d0d;
-      color: #e0e0e0;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #ffffff;
+      color: #1d1d1f;
+      font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       min-height: 100vh;
     }
 
     header {
-      background: linear-gradient(180deg, #1a1a2e 0%, #0d0d0d 100%);
-      padding: 2rem 2rem 1.5rem;
-      border-bottom: 1px solid #222;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      backdrop-filter: blur(10px);
+      background: #ffffff;
+      padding: 2.25rem 2rem 0;
+      max-width: 1400px;
+      margin: 0 auto;
     }
 
     header h1 {
-      font-size: 1.8rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      color: #fff;
+      color: #1d1d1f;
       letter-spacing: -0.5px;
+      margin-bottom: 1.25rem;
     }
 
-    header h1 span {
-      color: #7c6af7;
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
     }
 
-    .subtitle {
-      color: #666;
-      font-size: 0.85rem;
-      margin-top: 0.25rem;
+    .filter-btn {
+      background: none;
+      border: none;
+      padding: 0.45rem 0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: #8e8e93;
+      letter-spacing: -0.1px;
+      position: relative;
+      transition: color 0.15s;
+    }
+
+    .filter-btn:hover { color: #3a3a3c; }
+
+    .filter-btn.active {
+      color: #1d1d1f;
+      font-weight: 700;
+    }
+
+    .filter-btn.active::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 2px;
+      background: #007AFF;
+      border-radius: 1px;
+    }
+
+    .filter-btn .count {
+      margin-left: 0.3rem;
+      font-size: 0.78rem;
+      font-weight: 400;
+      opacity: 0.6;
     }
 
     main {
+      padding: 0 0 2rem;
+    }
+
+    .genre-section {
+      padding-bottom: 1.25rem;
+    }
+
+    .genre-sticky {
+      border-top: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    .floating-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+      display: none;
+      will-change: transform;
+    }
+    .floating-bar.visible { display: block; }
+
+    .genre-sticky-inner {
       max-width: 1400px;
       margin: 0 auto;
-      padding: 2rem;
+      padding: 0.65rem 2rem 0.55rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .genre-sticky-inner h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #8e8e93;
+      letter-spacing: -0.2px;
+    }
+
+    .view-all {
+      font-size: 0.72rem;
+      color: #8e8e93;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .view-all:hover { color: #6e6e73; text-decoration: underline; }
+
+    .genre-grid-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem 2rem 0;
     }
 
     .grid {
@@ -54,111 +142,104 @@
     }
 
     .card {
-      background: #1a1a1a;
-      border-radius: 12px;
-      overflow: hidden;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      overflow: visible;
       cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      border: 1px solid #2a2a2a;
+      transition: transform 0.18s ease;
       text-decoration: none;
       color: inherit;
       display: block;
+      padding: 0.5rem 0.25rem 0;
     }
 
-    .card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px #7c6af7;
-    }
+    .card:hover { transform: translateY(-3px); }
 
     .cover-wrap {
       position: relative;
       width: 100%;
-      padding-top: 140%;
-      background: #111;
+      padding-top: 100%;
+      background: transparent;
       overflow: hidden;
+      border-radius: 4px;
     }
 
-    .cover-canvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .cover-placeholder {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
-      color: #a5b4fc;
-      text-align: center;
-      padding: 1rem;
-    }
-
-    .cover-placeholder .icon {
-      font-size: 3rem;
-      margin-bottom: 0.5rem;
-      opacity: 0.6;
-    }
-
-    .cover-placeholder .title-preview {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #c7d2fe;
-      line-height: 1.3;
-    }
-
-    .loading-spinner {
+    .cover-icon {
       position: absolute;
       inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #111;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    .cover-icon svg {
+      width: 70%;
+      height: auto;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+    }
+    .card:hover .cover-icon {
+      opacity: 0;
+      transform: scale(0.94);
     }
 
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid #333;
-      border-top-color: #7c6af7;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+    .cover-thumb {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card:hover .cover-thumb { opacity: 1; }
+
+    .cover-thumb canvas {
+      max-width: 88%;
+      max-height: 88%;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .card-info {
-      padding: 0.75rem;
+      padding: 0.55rem 0.25rem 0;
+      background: transparent;
+      text-align: center;
     }
 
     .card-title {
       font-size: 0.85rem;
-      font-weight: 600;
-      color: #e0e0e0;
-      white-space: nowrap;
+      font-weight: 400;
+      color: #1d1d1f;
+      line-height: 1.25;
+      word-break: keep-all;
+      margin-bottom: 0.3rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
-      margin-bottom: 0.25rem;
     }
 
     .card-meta {
-      font-size: 0.72rem;
-      color: #666;
+      font-size: 0.68rem;
+      font-weight: 300;
+      color: #007AFF;
       display: flex;
-      gap: 0.5rem;
+      justify-content: center;
+      align-items: center;
+      gap: 0.35rem;
+      line-height: 1.1;
     }
 
-    .badge {
-      background: #2a2a3e;
-      color: #a5b4fc;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-size: 0.68rem;
+    .card-meta .dot {
+      width: 3px; height: 3px;
+      border-radius: 50%;
+      background: #007AFF;
+      opacity: 0.55;
     }
 
     .error-state {
@@ -173,19 +254,24 @@
     }
 
     @media (max-width: 600px) {
-      main { padding: 1rem; }
+      .genre-sticky-inner { padding: 0.5rem 1rem 0.45rem; }
+      .genre-grid-inner   { padding: 0.85rem 1rem 0; }
       .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
-      header h1 { font-size: 1.4rem; }
+      header { padding: 1.5rem 1rem 0; }
+      header h1 { font-size: 1.25rem; margin-bottom: 1rem; }
+      .filters { gap: 1.1rem; }
+      .filter-btn { font-size: 0.82rem; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>📚 만화 <span>라이브러리</span></h1>
-    <p class="subtitle">클릭하여 읽기 시작</p>
+    <h1>만화 라이브러리</h1>
+    <nav class="filters" id="filters"></nav>
   </header>
+  <div class="floating-bar" id="floatingBar"></div>
   <main>
-    <div class="grid" id="grid"></div>
+    <div id="sections"></div>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -193,37 +279,52 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    async function renderCover(pdfUrl, container) {
+    const PDF_ICON_SVG = `
+      <svg viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M12 3 H42 L57 18 V73 a4 4 0 0 1 -4 4 H12 a4 4 0 0 1 -4 -4 V7 a4 4 0 0 1 4 -4 Z" fill="#f5f5f5"/>
+        <path d="M42 3 V14 a4 4 0 0 0 4 4 H57 Z" fill="#d4d4d4"/>
+        <rect x="11" y="44" width="42" height="22" rx="3" fill="#e53935"/>
+        <text x="32" y="60" text-anchor="middle" fill="#fff"
+              font-family="-apple-system,Helvetica,Arial,sans-serif"
+              font-weight="800" font-size="13" letter-spacing="1">PDF</text>
+      </svg>`;
+
+    async function renderCover(pdfUrl, coverWrap) {
+      const thumb = coverWrap.querySelector('.cover-thumb');
+      if (!thumb) return;
       try {
         const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+        const card = coverWrap.closest('.card');
+        const pageCountEl = card && card.querySelector('.page-count');
+        if (pageCountEl) pageCountEl.textContent = `${pdf.numPages.toLocaleString()} 페이지`;
+
         const page = await pdf.getPage(1);
         const viewport = page.getViewport({ scale: 1 });
-        const scale = container.clientWidth / viewport.width;
+        const scale = coverWrap.clientWidth / viewport.width;
         const scaled = page.getViewport({ scale: scale || 1 });
 
         const canvas = document.createElement('canvas');
-        canvas.className = 'cover-canvas';
         canvas.width = scaled.width;
         canvas.height = scaled.height;
 
         await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaled }).promise;
-
-        container.innerHTML = '';
-        container.appendChild(canvas);
+        thumb.innerHTML = '';
+        thumb.appendChild(canvas);
       } catch {
-        container.innerHTML = container.dataset.fallback;
+        /* keep PDF icon visible on failure */
       }
     }
 
     async function init() {
-      const grid = document.getElementById('grid');
+      const sectionsEl = document.getElementById('sections');
+      const filtersEl  = document.getElementById('filters');
 
       let items;
       try {
         const res = await fetch('manifest.json');
         items = await res.json();
       } catch {
-        grid.innerHTML = `<div class="error-state">
+        sectionsEl.innerHTML = `<div class="error-state">
           <div style="font-size:3rem">📂</div>
           <p>manifest.json을 불러올 수 없습니다.</p>
           <p>GitHub Pages에서 실행해주세요.</p>
@@ -231,42 +332,160 @@
         return;
       }
 
-      for (const item of items) {
-        const fallback = `<div class="cover-placeholder">
-          <div class="icon">📖</div>
-          <div class="title-preview">${item.title}</div>
-        </div>`;
-
-        const card = document.createElement('a');
-        card.className = 'card';
-        card.href = `viewer.html?pdf=${encodeURIComponent(item.file)}&title=${encodeURIComponent(item.title)}`;
-        card.innerHTML = `
-          <div class="cover-wrap" id="cover-${item.id}">
-            <div class="loading-spinner"><div class="spinner"></div></div>
-          </div>
-          <div class="card-info">
-            <div class="card-title">${item.title}</div>
-            <div class="card-meta">
-              ${item.genre ? `<span class="badge">${item.genre}</span>` : ''}
-              ${item.pages ? `<span>${item.pages}p</span>` : ''}
-            </div>
-          </div>`;
-        grid.appendChild(card);
-
-        const coverWrap = card.querySelector(`#cover-${item.id}`);
-        coverWrap.dataset.fallback = fallback;
-
-        // Lazy load covers with IntersectionObserver
-        const observer = new IntersectionObserver((entries, obs) => {
-          for (const entry of entries) {
-            if (entry.isIntersecting) {
-              obs.unobserve(entry.target);
-              renderCover(item.file, entry.target);
-            }
-          }
-        }, { rootMargin: '200px' });
-        observer.observe(coverWrap);
+      // Group by genre, preserving manifest order within each group
+      const groups = {};
+      for (const it of items) {
+        const g = it.genre || '기타';
+        (groups[g] = groups[g] || []).push(it);
       }
+      const genres = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'ko'));
+
+      let activeGenre = 'all';
+
+      const renderFilters = () => {
+        filtersEl.innerHTML = '';
+        const all = document.createElement('button');
+        all.className = 'filter-btn' + (activeGenre === 'all' ? ' active' : '');
+        all.innerHTML = `전체<span class="count">${items.length}</span>`;
+        all.onclick = () => { activeGenre = 'all'; renderFilters(); applyFilter(); };
+        filtersEl.appendChild(all);
+
+        for (const g of genres) {
+          const btn = document.createElement('button');
+          btn.className = 'filter-btn' + (activeGenre === g ? ' active' : '');
+          btn.innerHTML = `${g}<span class="count">${groups[g].length}</span>`;
+          btn.onclick = () => { activeGenre = g; renderFilters(); applyFilter(); };
+          filtersEl.appendChild(btn);
+        }
+      };
+
+      let applyFilter = () => {
+        for (const sec of sectionsEl.querySelectorAll('.genre-section')) {
+          const g = sec.dataset.genre;
+          sec.style.display = (activeGenre === 'all' || g === activeGenre) ? '' : 'none';
+        }
+      };
+
+      renderFilters();
+
+      const observer = new IntersectionObserver((entries, obs) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            obs.unobserve(entry.target);
+            renderCover(entry.target.dataset.pdf, entry.target);
+          }
+        }
+      }, { rootMargin: '200px' });
+
+      for (const g of genres) {
+        const section = document.createElement('section');
+        section.className = 'genre-section';
+        section.dataset.genre = g;
+        section.innerHTML = `
+          <div class="genre-sticky">
+            <div class="genre-sticky-inner">
+              <h2>${g}</h2>
+              <a class="view-all" href="viewer.html?genre=${encodeURIComponent(g)}">전체 보기 (${groups[g].length}개)</a>
+            </div>
+          </div>
+          <div class="genre-grid-inner">
+            <div class="grid"></div>
+          </div>
+        `;
+        const grid = section.querySelector('.grid');
+
+        for (const item of groups[g]) {
+          const card = document.createElement('a');
+          card.className = 'card';
+          card.href = `viewer.html?pdf=${encodeURIComponent(item.file)}&title=${encodeURIComponent(item.title)}`;
+
+          const fileName = (item.file.split('/').pop()) || `${item.title}.pdf`;
+
+          card.innerHTML = `
+            <div class="cover-wrap" data-pdf="${item.file}">
+              <div class="cover-icon">${PDF_ICON_SVG}</div>
+              <div class="cover-thumb"></div>
+            </div>
+            <div class="card-info">
+              <div class="card-title">${fileName}</div>
+              <div class="card-meta"><span class="page-count"></span></div>
+            </div>`;
+          grid.appendChild(card);
+
+          observer.observe(card.querySelector('.cover-wrap'));
+        }
+
+        sectionsEl.appendChild(section);
+      }
+
+      // Floating bar: separate fixed-position bar that mirrors the currently-active
+      // section header. Original .genre-sticky elements stay in normal flow.
+      const floatingBar = document.getElementById('floatingBar');
+      let currentGenre = null;
+
+      const updateFloatingBar = () => {
+        const sections = Array.from(sectionsEl.querySelectorAll('.genre-section'))
+          .filter(s => s.offsetParent !== null);
+
+        // Reset any per-frame inline overrides on natural headers.
+        sectionsEl.querySelectorAll('.genre-sticky').forEach(h => {
+          h.style.borderTopColor = '';
+        });
+
+        const barHeight = floatingBar.offsetHeight || 0;
+        let active = null;
+        let nextHeader = null;
+
+        for (let i = 0; i < sections.length; i++) {
+          const header = sections[i].querySelector('.genre-sticky');
+          const top = header.getBoundingClientRect().top;
+          if (top <= 0) {
+            active = { section: sections[i], header };
+          } else {
+            if (active) nextHeader = header;
+            break;
+          }
+        }
+
+        if (!active) {
+          floatingBar.classList.remove('visible');
+          floatingBar.style.transform = '';
+          currentGenre = null;
+          return;
+        }
+
+        const genre = active.section.dataset.genre;
+        if (genre !== currentGenre) {
+          floatingBar.innerHTML = active.header.innerHTML;
+          currentGenre = genre;
+        }
+        floatingBar.classList.add('visible');
+
+        // Push-up: when the next section's natural header enters the floating
+        // bar's space, slide the bar up so the new header takes its place.
+        // During overlap, hide the incoming header's border-top so it doesn't
+        // stack against the floating bar's border-bottom into a double line.
+        if (nextHeader && barHeight > 0) {
+          const nextTop = nextHeader.getBoundingClientRect().top;
+          if (nextTop < barHeight) {
+            floatingBar.style.transform = `translateY(${nextTop - barHeight}px)`;
+            nextHeader.style.borderTopColor = 'transparent';
+          } else {
+            floatingBar.style.transform = '';
+          }
+        } else {
+          floatingBar.style.transform = '';
+        }
+      };
+
+      window.addEventListener('scroll', updateFloatingBar, { passive: true });
+      window.addEventListener('resize', updateFloatingBar, { passive: true });
+
+      // Re-run after filter changes (sections may hide/show).
+      const origApplyFilter = applyFilter;
+      applyFilter = () => { origApplyFilter(); updateFloatingBar(); };
+
+      updateFloatingBar();
     }
 
     init();

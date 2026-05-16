@@ -157,6 +157,42 @@
     .btn-del:hover { background: var(--danger-dim); border-color: var(--danger); color: var(--danger); }
     .tbl-empty { text-align: center; padding: 48px; color: var(--faint); font-size: 15px; }
 
+    /* ── ORDER LIST ── */
+    .order-hint { font-size: 14px; color: var(--dim); }
+    .order-list { display: flex; flex-direction: column; gap: 8px; }
+    .order-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px;
+      display: flex; align-items: center; gap: 14px;
+      cursor: grab; user-select: none;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .order-item:active { cursor: grabbing; }
+    .order-item.dragging { opacity: 0.4; }
+    .order-item.over-top    { border-top-color: var(--accent); box-shadow: 0 -2px 0 var(--accent); }
+    .order-item.over-bottom { border-bottom-color: var(--accent); box-shadow: 0 2px 0 var(--accent); }
+    .order-handle { color: var(--faint); font-size: 20px; line-height: 1; }
+    .order-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--surface2); color: var(--dim);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+    }
+    .order-title { flex: 1; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .order-genre {
+      background: var(--accent-dim); color: #c4b5fd;
+      padding: 3px 10px; border-radius: 5px; font-size: 13px;
+      border: 1px solid var(--accent); white-space: nowrap;
+    }
+    .order-empty { color: var(--faint); font-size: 14px; padding: 24px; text-align: center; }
+    .save-btn {
+      background: var(--accent-dim); border: 1px solid var(--accent);
+      color: #c4b5fd; border-radius: 6px; padding: 7px 16px;
+      font-size: 14px; cursor: pointer; transition: background 0.12s;
+    }
+    .save-btn:hover:not(:disabled) { background: #3d2d80; }
+    .save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
     /* ── MISC ── */
     .row-between { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
     .badge { font-size: 15px; color: var(--dim); }
@@ -245,6 +281,18 @@
             <div id="chart-dow"></div>
           </div>
         </div>
+      </div>
+
+      <!-- 작품 순서 -->
+      <div class="section">
+        <div class="row-between" style="margin-bottom:14px">
+          <p class="sec-title" style="margin:0">작품 순서</p>
+          <button class="save-btn" id="btn-save-order" disabled>manifest.json 다운로드</button>
+        </div>
+        <p class="order-hint" style="margin-bottom:12px">
+          드래그하여 작품 순서를 변경한 뒤 manifest.json을 다운로드해 기존 파일을 덮어쓰세요.
+        </p>
+        <div class="order-list" id="order-list"></div>
       </div>
 
       <!-- PDF별 현황 -->
@@ -349,19 +397,24 @@
   };
 
   /* ── 데이터 ── */
-  let visits = [], annots = [];
+  let visits = [], annots = [], manifest = [], originalOrder = '';
 
   async function loadAll() {
     document.getElementById('loading').style.display  = 'block';
     document.getElementById('content').style.display  = 'none';
 
-    [visits, annots] = await Promise.all([
+    const [v, a, m] = await Promise.all([
       sbGet('visits?select=pdf_file,visited_at&order=visited_at.desc&limit=5000'),
-      sbGet('annotations?select=*&order=created_at.desc')
+      sbGet('annotations?select=*&order=created_at.desc'),
+      fetch('manifest.json').then(r => r.ok ? r.json() : []).catch(() => [])
     ]);
+    visits = v; annots = a;
+    manifest = Array.isArray(m) ? m : [];
+    originalOrder = JSON.stringify(manifest.map(it => it.id));
 
     renderStats();
     renderCharts();
+    renderOrderList();
     renderPdfs();
     renderTable();
 
@@ -370,6 +423,81 @@
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
   }
+
+  /* ── 작품 순서 ── */
+  function renderOrderList() {
+    const list = document.getElementById('order-list');
+    if (!manifest.length) {
+      list.innerHTML = '<div class="order-empty">manifest.json을 불러올 수 없거나 작품이 없습니다.</div>';
+      return;
+    }
+    list.innerHTML = manifest.map((item, idx) => `
+      <div class="order-item" draggable="true" data-idx="${idx}">
+        <span class="order-handle">≡</span>
+        <span class="order-num">${idx + 1}</span>
+        <span class="order-title" title="${esc(item.title)}">${esc(item.title)}</span>
+        ${item.genre ? `<span class="order-genre">${esc(item.genre)}</span>` : ''}
+      </div>
+    `).join('');
+    attachOrderDnd();
+    refreshSaveBtn();
+  }
+
+  function attachOrderDnd() {
+    const items = document.querySelectorAll('.order-item');
+    let draggedIdx = null;
+
+    items.forEach(item => {
+      item.addEventListener('dragstart', e => {
+        draggedIdx = parseInt(item.dataset.idx);
+        item.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      item.addEventListener('dragend', () => {
+        items.forEach(i => i.classList.remove('dragging', 'over-top', 'over-bottom'));
+      });
+      item.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (draggedIdx === null || parseInt(item.dataset.idx) === draggedIdx) return;
+        const r = item.getBoundingClientRect();
+        const above = (e.clientY - r.top) < r.height / 2;
+        item.classList.toggle('over-top', above);
+        item.classList.toggle('over-bottom', !above);
+      });
+      item.addEventListener('dragleave', () => {
+        item.classList.remove('over-top', 'over-bottom');
+      });
+      item.addEventListener('drop', e => {
+        e.preventDefault();
+        if (draggedIdx === null) return;
+        const targetIdx = parseInt(item.dataset.idx);
+        if (targetIdx === draggedIdx) return;
+        const r = item.getBoundingClientRect();
+        const above = (e.clientY - r.top) < r.height / 2;
+        let insertAt = above ? targetIdx : targetIdx + 1;
+        if (insertAt > draggedIdx) insertAt--;
+        const [moved] = manifest.splice(draggedIdx, 1);
+        manifest.splice(insertAt, 0, moved);
+        draggedIdx = null;
+        renderOrderList();
+      });
+    });
+  }
+
+  function refreshSaveBtn() {
+    const now = JSON.stringify(manifest.map(it => it.id));
+    document.getElementById('btn-save-order').disabled = (now === originalOrder);
+  }
+
+  document.getElementById('btn-save-order').addEventListener('click', () => {
+    const json = JSON.stringify(manifest, null, 2) + '\n';
+    const blob = new Blob([json], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'manifest.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
 
   /* ── 개요 ── */
   function renderStats() {
