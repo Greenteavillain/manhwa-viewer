@@ -25,12 +25,21 @@
       margin: 0 auto;
     }
 
-    header h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
+    header .logo {
+      display: block;
+      width: fit-content;
+      margin: 0 auto 1.25rem;
       color: #1d1d1f;
-      letter-spacing: -0.5px;
-      margin-bottom: 1.25rem;
+      line-height: 0;
+    }
+    header .logo svg {
+      display: block;
+      height: 90px;
+      width: auto;
+      user-select: none;
+    }
+    header .logo svg circle.returning {
+      transition: cx 0.8s cubic-bezier(.4,.0,.2,1), cy 0.8s cubic-bezier(.4,.0,.2,1);
     }
 
     .filters {
@@ -67,7 +76,7 @@
       right: 0;
       bottom: 0;
       height: 2px;
-      background: #007AFF;
+      background: #73ad6b;
       border-radius: 1px;
     }
 
@@ -231,7 +240,7 @@
     .card-meta {
       font-size: 0.68rem;
       font-weight: 300;
-      color: #007AFF;
+      color: #73ad6b;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -242,7 +251,7 @@
     .card-meta .dot {
       width: 3px; height: 3px;
       border-radius: 50%;
-      background: #007AFF;
+      background: #73ad6b;
       opacity: 0.55;
     }
 
@@ -262,7 +271,8 @@
       .genre-grid-inner   { padding: 0.85rem 1rem 0; }
       .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
       header { padding: 1.5rem 1rem 0; }
-      header h1 { font-size: 1.25rem; margin-bottom: 1rem; }
+      header .logo { margin-bottom: 1rem; }
+      header .logo svg { height: 69px; }
       .filters { gap: 1.1rem; }
       .filter-btn { font-size: 0.82rem; }
     }
@@ -270,7 +280,17 @@
 </head>
 <body>
   <header>
-    <h1>만화 라이브러리</h1>
+    <h1 class="logo" aria-label="만화 라이브러리">
+      <svg viewBox="0 0 137.17 63.75" xmlns="http://www.w3.org/2000/svg"
+           fill="none" stroke="currentColor" stroke-width="3" stroke-miterlimit="10"
+           aria-hidden="true">
+        <circle cx="31.87"  cy="31.87" r="30.37"/>
+        <circle cx="105.3"  cy="31.87" r="30.37"/>
+        <line   x1="62.25"  y1="31.87" x2="74.93" y2="31.87"/>
+        <circle id="eye-left"  cx="50.28"  cy="31.87" r="4.85"/>
+        <circle id="eye-right" cx="123.68" cy="31.87" r="4.85"/>
+      </svg>
+    </h1>
     <nav class="filters" id="filters"></nav>
   </header>
   <div class="floating-bar" id="floatingBar"></div>
@@ -485,6 +505,104 @@
     }
 
     init();
+
+    // 안경 눈동자가 마우스 커서를 따라보게.
+    // 커서가 창 밖으로 나가면: 직전 각속도로 잠시 관성 회전 → 2초 후 디폴트(우측)로 스르륵 복귀.
+    (function eyeTracker() {
+      const leftEye  = document.getElementById('eye-left');
+      const rightEye = document.getElementById('eye-right');
+      if (!leftEye || !rightEye) return;
+      const svg = leftEye.ownerSVGElement;
+
+      const VB_W = 137.17, VB_H = 63.75;
+      const LENS = [
+        { eye: leftEye,  cx: 31.87,  cy: 31.87, orbit: 18.41, defaultCx: 50.28,  defaultCy: 31.87 },
+        { eye: rightEye, cx: 105.30, cy: 31.87, orbit: 18.38, defaultCx: 123.68, defaultCy: 31.87 }
+      ];
+      const angles = [0, 0];   // current angle from each lens center (rad)
+      const angVel = [0, 0];   // smoothed angular velocity (rad / ms)
+
+      let pending = false, lastX = 0, lastY = 0, lastUpdate = 0;
+      let inertiaRaf = null, returnTimer = null;
+
+      function setEye(lens, angle) {
+        lens.eye.setAttribute('cx', lens.cx + Math.cos(angle) * lens.orbit);
+        lens.eye.setAttribute('cy', lens.cy + Math.sin(angle) * lens.orbit);
+      }
+      function cancelLeaveBehavior() {
+        if (inertiaRaf)  { cancelAnimationFrame(inertiaRaf); inertiaRaf = null; }
+        if (returnTimer) { clearTimeout(returnTimer); returnTimer = null; }
+        leftEye.classList.remove('returning');
+        rightEye.classList.remove('returning');
+      }
+
+      function update() {
+        pending = false;
+        const rect = svg.getBoundingClientRect();
+        if (!rect.width) return;
+        const sx = ((lastX - rect.left) / rect.width)  * VB_W;
+        const sy = ((lastY - rect.top)  / rect.height) * VB_H;
+        const now = performance.now();
+        const dt = lastUpdate > 0 ? now - lastUpdate : 16;
+
+        for (let i = 0; i < LENS.length; i++) {
+          const lens = LENS[i];
+          const dx = sx - lens.cx;
+          const dy = sy - lens.cy;
+          const angle = Math.atan2(dy, dx);
+          if (dt > 0 && dt < 100) {
+            let delta = angle - angles[i];
+            while (delta >  Math.PI) delta -= 2 * Math.PI;
+            while (delta < -Math.PI) delta += 2 * Math.PI;
+            angVel[i] = angVel[i] * 0.5 + (delta / dt) * 0.5; // EWMA
+          }
+          angles[i] = angle;
+          setEye(lens, angle);
+        }
+        lastUpdate = now;
+      }
+      function schedule(x, y) {
+        cancelLeaveBehavior();
+        lastX = x; lastY = y;
+        if (!pending) { pending = true; requestAnimationFrame(update); }
+      }
+
+      function startInertia() {
+        let lastFrame = performance.now();
+        function tick(now) {
+          const dt = now - lastFrame;
+          lastFrame = now;
+          let moving = false;
+          for (let i = 0; i < LENS.length; i++) {
+            angles[i] += angVel[i] * dt;
+            angVel[i] *= Math.pow(0.85, dt / 16); // exponential damping
+            setEye(LENS[i], angles[i]);
+            if (Math.abs(angVel[i]) > 0.0005) moving = true;
+          }
+          inertiaRaf = moving ? requestAnimationFrame(tick) : null;
+        }
+        inertiaRaf = requestAnimationFrame(tick);
+
+        returnTimer = setTimeout(() => {
+          if (inertiaRaf) { cancelAnimationFrame(inertiaRaf); inertiaRaf = null; }
+          leftEye.classList.add('returning');
+          rightEye.classList.add('returning');
+          for (const lens of LENS) {
+            lens.eye.setAttribute('cx', lens.defaultCx);
+            lens.eye.setAttribute('cy', lens.defaultCy);
+          }
+          angles[0] = angles[1] = 0; // default angle = 0 (pointing right)
+          angVel[0] = angVel[1] = 0;
+          returnTimer = null;
+        }, 2000);
+      }
+
+      document.addEventListener('mousemove', e => schedule(e.clientX, e.clientY));
+      document.addEventListener('touchmove', e => {
+        if (e.touches[0]) schedule(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+      document.documentElement.addEventListener('mouseleave', startInertia);
+    })();
   </script>
 </body>
 </html>
