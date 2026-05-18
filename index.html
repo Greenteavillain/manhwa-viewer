@@ -189,7 +189,6 @@
     .cover-icon img {
       width: 70%;
       height: auto;
-      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.38));
       -webkit-user-drag: none;
       user-select: none;
     }
@@ -310,7 +309,8 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    const PDF_ICON_SVG = `<img src="favicon.svg" alt="PDF" draggable="false">`;
+    const randomPdfIcon = () =>
+      `<img src="pdf${Math.floor(Math.random() * 5) + 1}.png" alt="PDF" draggable="false">`;
 
     async function renderCover(pdfUrl, coverWrap) {
       const thumb = coverWrap.querySelector('.cover-thumb');
@@ -426,7 +426,7 @@
 
           card.innerHTML = `
             <div class="cover-wrap" data-pdf="${item.file}">
-              <div class="cover-icon">${PDF_ICON_SVG}</div>
+              <div class="cover-icon">${randomPdfIcon()}</div>
               <div class="cover-thumb"></div>
             </div>
             <div class="card-info">
