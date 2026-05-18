@@ -23,6 +23,11 @@
       padding: 3.75rem 2rem 0;
       max-width: 1400px;
       margin: 0 auto;
+      cursor: pointer;
+      transition: padding 0.7s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    header.expanded {
+      padding: 300px 2rem 0;
     }
 
     header .logo {
@@ -31,6 +36,10 @@
       margin: 0 auto 2rem;
       color: #73ad6b;
       line-height: 0;
+      transition: margin 0.7s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    header.expanded .logo {
+      margin-bottom: 300px;
     }
     header .logo svg {
       display: block;
@@ -512,6 +521,15 @@
     }
 
     init();
+
+    // 헤더 클릭 → 위아래 여백을 200px로 토글 (S자 곡선 슈웅)
+    (function headerToggle() {
+      const headerEl = document.querySelector('header');
+      headerEl.addEventListener('click', e => {
+        if (e.target.closest('.filter-btn')) return;
+        headerEl.classList.toggle('expanded');
+      });
+    })();
 
     // 안경 눈동자가 마우스 커서를 따라보게.
     // 커서가 창 밖으로 나가면: 직전 각속도로 잠시 관성 회전 → 2초 후 디폴트(우측)로 스르륵 복귀.

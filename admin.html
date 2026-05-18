@@ -297,6 +297,19 @@
         <div class="order-list" id="order-list"></div>
       </div>
 
+      <!-- 빈 페이지 추가 -->
+      <div class="section">
+        <p class="sec-title">빈 페이지 추가</p>
+        <p class="order-hint" style="margin-bottom:12px">
+          작품을 선택하고 버튼을 누르면 마지막 페이지와 동일한 크기의 하얀 빈 페이지를 끝에 추가한 새 PDF를 다운로드합니다. 받은 파일로 pdfs/ 폴더의 기존 파일을 덮어쓰세요.
+        </p>
+        <div class="filter-row">
+          <select id="blank-select" style="flex:1"><option value="">작품 선택…</option></select>
+          <button class="save-btn" id="btn-add-blank" disabled>빈 페이지 추가 후 다운로드</button>
+        </div>
+        <div id="blank-status" style="font-size:14px;color:var(--dim);margin-top:10px;min-height:18px"></div>
+      </div>
+
       <!-- PDF별 현황 -->
       <div class="section">
         <p class="sec-title">PDF별 현황</p>
@@ -336,6 +349,7 @@
   </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script>
 (function () {
   'use strict';
@@ -417,6 +431,7 @@
     renderStats();
     renderCharts();
     renderOrderList();
+    renderBlankSelect();
     renderPdfs();
     renderTable();
 
@@ -490,6 +505,55 @@
     const now = JSON.stringify(manifest.map(it => it.id));
     document.getElementById('btn-save-order').disabled = (now === originalOrder);
   }
+
+  /* ── 빈 페이지 추가 ── */
+  function renderBlankSelect() {
+    const sel = document.getElementById('blank-select');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">작품 선택…</option>' +
+      manifest.map(it => `<option value="${esc(it.file)}">${esc(it.title)}</option>`).join('');
+    if (manifest.some(it => it.file === prev)) sel.value = prev;
+    document.getElementById('btn-add-blank').disabled = !sel.value;
+  }
+
+  document.getElementById('blank-select').addEventListener('change', () => {
+    document.getElementById('btn-add-blank').disabled = !document.getElementById('blank-select').value;
+    document.getElementById('blank-status').textContent = '';
+  });
+
+  document.getElementById('btn-add-blank').addEventListener('click', async () => {
+    const sel    = document.getElementById('blank-select');
+    const btn    = document.getElementById('btn-add-blank');
+    const status = document.getElementById('blank-status');
+    const file   = sel.value;
+    if (!file) return;
+    btn.disabled = true;
+    status.textContent = 'PDF 불러오는 중…';
+    try {
+      const res = await fetch(encodeURI(file));
+      if (!res.ok) throw new Error('파일을 찾을 수 없습니다');
+      const ab    = await res.arrayBuffer();
+      const doc   = await PDFLib.PDFDocument.load(ab);
+      const pages = doc.getPages();
+      if (!pages.length) throw new Error('빈 PDF입니다');
+      const { width, height } = pages[pages.length - 1].getSize();
+      doc.addPage([width, height]);
+      const bytes = await doc.save();
+
+      const fileName = decodeURIComponent(file.split('/').pop());
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      status.textContent = `완료: ${fileName} (${pages.length + 1}p) 다운로드됨. pdfs/ 폴더에 덮어쓰세요.`;
+    } catch (e) {
+      status.textContent = '실패: ' + e.message;
+    } finally {
+      btn.disabled = !sel.value;
+    }
+  });
 
   document.getElementById('btn-save-order').addEventListener('click', () => {
     const json = JSON.stringify(manifest, null, 2) + '\n';

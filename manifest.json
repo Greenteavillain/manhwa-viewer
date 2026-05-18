@@ -6,6 +6,24 @@
     "genre": "말차 소금 여행기"
   },
   {
+    "id": "going",
+    "title": "가는길",
+    "file": "pdfs/가는길.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
+    "id": "almost_late",
+    "title": "늦을뻔",
+    "file": "pdfs/늦을뻔.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
+    "id": "airplane",
+    "title": "비행기",
+    "file": "pdfs/비행기.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
     "id": "travel_photo",
     "title": "여행 사진",
     "file": "pdfs/여행 사진.pdf",
