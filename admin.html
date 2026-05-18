@@ -187,6 +187,30 @@
       border: 1px solid var(--accent); white-space: nowrap;
     }
     .order-empty { color: var(--faint); font-size: 14px; padding: 24px; text-align: center; }
+
+    /* ── BLANK LIST ── */
+    .blank-list { display: flex; flex-direction: column; gap: 8px; }
+    .blank-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .blank-ctrl { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .blank-btn {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--surface2); border: 1px solid var(--border2);
+      color: var(--text); cursor: pointer; font-size: 16px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .blank-btn:hover:not(:disabled) {
+      background: var(--accent-dim); border-color: var(--accent); color: #c4b5fd;
+    }
+    .blank-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .blank-count {
+      min-width: 28px; text-align: center; font-size: 16px;
+      color: var(--text); font-weight: 600;
+    }
     .save-btn {
       background: var(--accent-dim); border: 1px solid var(--accent);
       color: #c4b5fd; border-radius: 6px; padding: 7px 16px;
@@ -297,17 +321,13 @@
         <div class="order-list" id="order-list"></div>
       </div>
 
-      <!-- 빈 페이지 추가 -->
+      <!-- 빈 페이지 끝에 끼우기 -->
       <div class="section">
-        <p class="sec-title">빈 페이지 추가</p>
+        <p class="sec-title">빈 페이지 (전체보기 페이지 맞춤용)</p>
         <p class="order-hint" style="margin-bottom:12px">
-          작품을 선택하고 버튼을 누르면 마지막 페이지와 동일한 크기의 하얀 빈 페이지를 끝에 추가한 새 PDF를 다운로드합니다. 받은 파일로 pdfs/ 폴더의 기존 파일을 덮어쓰세요.
+          각 작품 끝에 끼울 빈 페이지 수를 조절합니다. 전체보기에서 다음 작품 시작 페이지를 맞추는 용도입니다. +/− 버튼을 누르는 즉시 클라우드에 저장돼 새로고침해도 유지되고, 모두에게 바로 반영됩니다. 실제 PDF 파일은 수정되지 않습니다.
         </p>
-        <div class="filter-row">
-          <select id="blank-select" style="flex:1"><option value="">작품 선택…</option></select>
-          <button class="save-btn" id="btn-add-blank" disabled>빈 페이지 추가 후 다운로드</button>
-        </div>
-        <div id="blank-status" style="font-size:14px;color:var(--dim);margin-top:10px;min-height:18px"></div>
+        <div class="blank-list" id="blank-list"></div>
       </div>
 
       <!-- PDF별 현황 -->
@@ -349,7 +369,6 @@
   </main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script>
 (function () {
   'use strict';
@@ -419,19 +438,26 @@
     document.getElementById('loading').style.display  = 'block';
     document.getElementById('content').style.display  = 'none';
 
-    const [v, a, m] = await Promise.all([
+    const [v, a, m, s] = await Promise.all([
       sbGet('visits?select=pdf_file,visited_at&order=visited_at.desc&limit=5000'),
       sbGet('annotations?select=*&order=created_at.desc'),
-      fetch('manifest.json').then(r => r.ok ? r.json() : []).catch(() => [])
+      fetch('manifest.json').then(r => r.ok ? r.json() : []).catch(() => []),
+      sbGet('pdf_settings?select=*')
     ]);
     visits = v; annots = a;
     manifest = Array.isArray(m) ? m : [];
+
+    // Merge Supabase-stored trailing_blanks into the in-memory manifest
+    const settings = {};
+    s.forEach(row => { settings[row.pdf_file] = row.trailing_blanks; });
+    manifest.forEach(it => { it.trailing_blanks = settings[it.file] || 0; });
+
     originalOrder = JSON.stringify(manifest.map(it => it.id));
 
     renderStats();
     renderCharts();
     renderOrderList();
-    renderBlankSelect();
+    renderBlankList();
     renderPdfs();
     renderTable();
 
@@ -506,57 +532,81 @@
     document.getElementById('btn-save-order').disabled = (now === originalOrder);
   }
 
-  /* ── 빈 페이지 추가 ── */
-  function renderBlankSelect() {
-    const sel = document.getElementById('blank-select');
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">작품 선택…</option>' +
-      manifest.map(it => `<option value="${esc(it.file)}">${esc(it.title)}</option>`).join('');
-    if (manifest.some(it => it.file === prev)) sel.value = prev;
-    document.getElementById('btn-add-blank').disabled = !sel.value;
+  /* ── 빈 페이지 끝에 끼우기 ── */
+  function renderBlankList() {
+    const list = document.getElementById('blank-list');
+    if (!manifest.length) {
+      list.innerHTML = '<div class="order-empty">작품이 없습니다.</div>';
+      return;
+    }
+    list.innerHTML = manifest.map((item, idx) => {
+      const n = item.trailing_blanks || 0;
+      return `
+        <div class="blank-item" data-idx="${idx}">
+          <span class="order-title" title="${esc(item.title)}">${esc(item.title)}</span>
+          ${item.genre ? `<span class="order-genre">${esc(item.genre)}</span>` : ''}
+          <div class="blank-ctrl">
+            <button class="blank-btn" data-action="minus" ${n === 0 ? 'disabled' : ''}>−</button>
+            <span class="blank-count">${n}</span>
+            <button class="blank-btn" data-action="plus">+</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    list.querySelectorAll('.blank-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const itemEl  = btn.closest('.blank-item');
+        const idx     = parseInt(itemEl.dataset.idx);
+        const current = manifest[idx].trailing_blanks || 0;
+        const next    = btn.dataset.action === 'plus' ? current + 1 : Math.max(0, current - 1);
+        if (next === current) return;
+
+        // optimistic UI
+        manifest[idx].trailing_blanks = next;
+        itemEl.querySelector('.blank-count').textContent = next;
+        itemEl.querySelectorAll('.blank-btn').forEach(b => b.disabled = true);
+
+        try {
+          await sbUpsert('pdf_settings', { pdf_file: manifest[idx].file, trailing_blanks: next });
+        } catch (err) {
+          // rollback on failure
+          manifest[idx].trailing_blanks = current;
+          itemEl.querySelector('.blank-count').textContent = current;
+          alert('저장 실패: ' + err.message);
+        } finally {
+          itemEl.querySelector('.blank-btn[data-action="minus"]').disabled =
+            (manifest[idx].trailing_blanks || 0) === 0;
+          itemEl.querySelector('.blank-btn[data-action="plus"]').disabled = false;
+        }
+      });
+    });
   }
 
-  document.getElementById('blank-select').addEventListener('change', () => {
-    document.getElementById('btn-add-blank').disabled = !document.getElementById('blank-select').value;
-    document.getElementById('blank-status').textContent = '';
-  });
-
-  document.getElementById('btn-add-blank').addEventListener('click', async () => {
-    const sel    = document.getElementById('blank-select');
-    const btn    = document.getElementById('btn-add-blank');
-    const status = document.getElementById('blank-status');
-    const file   = sel.value;
-    if (!file) return;
-    btn.disabled = true;
-    status.textContent = 'PDF 불러오는 중…';
-    try {
-      const res = await fetch(encodeURI(file));
-      if (!res.ok) throw new Error('파일을 찾을 수 없습니다');
-      const ab    = await res.arrayBuffer();
-      const doc   = await PDFLib.PDFDocument.load(ab);
-      const pages = doc.getPages();
-      if (!pages.length) throw new Error('빈 PDF입니다');
-      const { width, height } = pages[pages.length - 1].getSize();
-      doc.addPage([width, height]);
-      const bytes = await doc.save();
-
-      const fileName = decodeURIComponent(file.split('/').pop());
-      const blob = new Blob([bytes], { type: 'application/pdf' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url; a.download = fileName;
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-      status.textContent = `완료: ${fileName} (${pages.length + 1}p) 다운로드됨. pdfs/ 폴더에 덮어쓰세요.`;
-    } catch (e) {
-      status.textContent = '실패: ' + e.message;
-    } finally {
-      btn.disabled = !sel.value;
+  async function sbUpsert(path, body) {
+    const res = await fetch(SB_URL + '/rest/v1/' + path, {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || ('HTTP ' + res.status));
     }
-  });
+  }
 
   document.getElementById('btn-save-order').addEventListener('click', () => {
-    const json = JSON.stringify(manifest, null, 2) + '\n';
+    // trailing_blanks lives in Supabase, so the manifest stays minimal
+    const exportData = manifest.map(it => {
+      const clean = { id: it.id, title: it.title, file: it.file };
+      if (it.genre) clean.genre = it.genre;
+      return clean;
+    });
+    const json = JSON.stringify(exportData, null, 2) + '\n';
     const blob = new Blob([json], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');

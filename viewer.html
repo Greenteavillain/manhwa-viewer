@@ -608,7 +608,12 @@
   function resolvePage(globalPage) {
     for (let i = 0; i < pdfDocs.length; i++) {
       if (globalPage > pageOffsets[i] && globalPage <= pageOffsets[i + 1]) {
-        return { docIdx: i, localPage: globalPage - pageOffsets[i] };
+        const localPage = globalPage - pageOffsets[i];
+        const realPages = pdfDocs[i].numPages;
+        const isBlank   = localPage > realPages;
+        // Blank pages mirror the last real page's size, so callers can render
+        // a same-shape white canvas without special-casing dimensions.
+        return { docIdx: i, localPage: isBlank ? realPages : localPage, isBlank };
       }
     }
     return null;
@@ -681,7 +686,13 @@
     canvas.height = vp.height;
     canvas.style.width  = Math.round(vp.width  / DPR) + 'px';
     canvas.style.height = Math.round(vp.height / DPR) + 'px';
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    if (r.isBlank) {
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    }
     pageCache[key] = canvas;
     return canvas;
   }
@@ -1071,7 +1082,13 @@
       const csH = Math.round(vp.height / DPR);
       canvas.style.width  = csW + 'px';
       canvas.style.height = csH + 'px';
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      if (r.isBlank) {
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      }
 
       wrap.innerHTML = '';
       wrap.style.width  = csW + 'px';
@@ -1372,6 +1389,8 @@
       slot = slotRight; pageNum = curPage;
     }
     if (!slot || !slot.querySelector('canvas') || pageNum < 1 || pageNum > totalPages) return;
+    const resolved = resolvePage(pageNum);
+    if (resolved && resolved.isBlank) return;
     const r    = slot.getBoundingClientRect();
     const xPct = Math.max(3, Math.min(97, ((e.clientX - r.left) / r.width)  * 100));
     const yPct = Math.max(3, Math.min(97, ((e.clientY - r.top)  / r.height) * 100));
@@ -1385,6 +1404,8 @@
     const wrap = e.target.closest('.scroll-page-wrap');
     if (!wrap || !wrap.querySelector('canvas')) return;
     const pageNum = parseInt(wrap.dataset.pageNum);
+    const resolved = resolvePage(pageNum);
+    if (resolved && resolved.isBlank) return;
     const r    = wrap.getBoundingClientRect();
     const xPct = Math.max(3, Math.min(97, ((e.clientX - r.left) / r.width)  * 100));
     const yPct = Math.max(3, Math.min(97, ((e.clientY - r.top)  / r.height) * 100));
@@ -1441,12 +1462,23 @@
       pdfFiles  = targetItems.map(it => it.file);
       loadText.textContent = `PDF 불러오는 중… (${pdfFiles.length}편)`;
 
+      // Merge Supabase-stored trailing_blanks (admin can edit live; manifest stays minimal)
+      try {
+        const settings = await sbFetch('pdf_settings?select=*');
+        if (Array.isArray(settings)) {
+          const map = {};
+          settings.forEach(row => { map[row.pdf_file] = row.trailing_blanks; });
+          bookItems = bookItems.map(it => ({ ...it, trailing_blanks: map[it.file] || it.trailing_blanks || 0 }));
+        }
+      } catch {}
+
       pdfDocs = await Promise.all(pdfFiles.map(f => pdfjsLib.getDocument(f).promise));
 
-      // Build cumulative page offsets
+      // Build cumulative page offsets (each book may carry trailing blank pages)
       pageOffsets = [0];
-      for (const doc of pdfDocs) {
-        pageOffsets.push(pageOffsets[pageOffsets.length - 1] + doc.numPages);
+      for (let i = 0; i < pdfDocs.length; i++) {
+        const blanks = (bookItems[i] && bookItems[i].trailing_blanks) || 0;
+        pageOffsets.push(pageOffsets[pageOffsets.length - 1] + pdfDocs[i].numPages + blanks);
       }
       totalPages = pageOffsets[pageOffsets.length - 1];
 
