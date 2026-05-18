@@ -30,6 +30,18 @@
     "genre": "말차 소금 여행기"
   },
   {
+    "id": "arrive_japan",
+    "title": "일본 도착",
+    "file": "pdfs/일본 도착.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
+    "id": "after_claw",
+    "title": "인형뽑기 후",
+    "file": "pdfs/인형뽑기 후.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
     "id": "omelet",
     "title": "오믈렛",
     "file": "pdfs/오믈렛.pdf",
