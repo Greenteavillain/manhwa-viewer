@@ -42,6 +42,12 @@
     "genre": "말차 소금 여행기"
   },
   {
+    "id": "claw",
+    "title": "인형뽑기",
+    "file": "pdfs/인형뽑기.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
     "id": "after_claw",
     "title": "인형뽑기 후",
     "file": "pdfs/인형뽑기 후.pdf",
