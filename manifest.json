@@ -60,6 +60,12 @@
     "genre": "말차 소금 여행기"
   },
   {
+    "id": "sunshine",
+    "title": "선샤인",
+    "file": "pdfs/선샤인.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
     "id": "ikebus",
     "title": "이케버스",
     "file": "pdfs/이케버스.pdf",
@@ -69,12 +75,6 @@
     "id": "bus_photo",
     "title": "버스 사진",
     "file": "pdfs/버스 사진.pdf",
-    "genre": "말차 소금 여행기"
-  },
-  {
-    "id": "sunshine",
-    "title": "선샤인",
-    "file": "pdfs/선샤인.pdf",
     "genre": "말차 소금 여행기"
   },
   {
