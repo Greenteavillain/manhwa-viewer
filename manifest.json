@@ -54,6 +54,12 @@
     "genre": "말차 소금 여행기"
   },
   {
+    "id": "sunshine",
+    "title": "선샤인",
+    "file": "pdfs/선샤인.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
     "id": "unit_select",
     "title": "자대 선택",
     "file": "pdfs/자대 선택.pdf",
