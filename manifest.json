@@ -24,6 +24,12 @@
     "genre": "말차 소금 여행기"
   },
   {
+    "id": "photo_before",
+    "title": "사진 전",
+    "file": "pdfs/사진 전.pdf",
+    "genre": "말차 소금 여행기"
+  },
+  {
     "id": "travel_photo",
     "title": "여행 사진",
     "file": "pdfs/여행 사진.pdf",
