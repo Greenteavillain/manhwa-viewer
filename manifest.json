@@ -96,6 +96,12 @@
     "genre": "소미도 근무일지"
   },
   {
+    "id": "distress",
+    "title": "조난",
+    "file": "pdfs/조난.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
     "id": "sunrise",
     "title": "해돋이",
     "file": "pdfs/해돋이.pdf",
@@ -105,6 +111,12 @@
     "id": "mullet",
     "title": "숭어",
     "file": "pdfs/숭어.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
+    "id": "sea_gaze",
+    "title": "바멍",
+    "file": "pdfs/바멍.pdf",
     "genre": "소미도 근무일지"
   }
 ]
