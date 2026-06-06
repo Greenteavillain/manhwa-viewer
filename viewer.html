@@ -1861,10 +1861,20 @@
     async function embFor(g) {
       if (!g || g < 1 || g > totalPages) return null;
       const r = resolvePage(g);
-      if (!r || r.isBlank) return null;            // 빈 페이지 → 흰 여백
+      if (!r || r.isBlank) return null;            // 정렬용 빈 페이지 → 흰 여백
       const ck = r.docIdx + ':' + r.localPage;
-      if (embedCache[ck]) return embedCache[ck];
-      const emb = await out.embedPage(srcDocs[r.docIdx].getPage(r.localPage - 1));
+      if (ck in embedCache) return embedCache[ck];
+      const srcPage = srcDocs[r.docIdx].getPage(r.localPage - 1);
+      // 내용 스트림(/Contents)이 없는 실제 빈 페이지는 embedPage가 거부하므로 흰 여백 처리
+      let emb = null;
+      try {
+        let hasContents = false;
+        try { hasContents = !!(srcPage.node && srcPage.node.Contents && srcPage.node.Contents()); } catch (e) {}
+        if (hasContents) emb = await out.embedPage(srcPage);
+      } catch (e) {
+        console.warn('[download] 빈 페이지 건너뜀:', ck, e && e.message);
+        emb = null;
+      }
       embedCache[ck] = emb;
       return emb;
     }
