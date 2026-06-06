@@ -499,6 +499,67 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     #load-text { color: #6e6e73; font-size: 0.85rem; }
+
+    /* ── DOWNLOAD menu ── */
+    .dl-popover {
+      position: fixed;
+      z-index: 600;
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 232px;
+      transform-origin: top right;
+      animation: share-pop-in 0.16s ease-out;
+    }
+    .dl-scope {
+      font-size: 0.68rem;
+      color: #8e8e93;
+      padding: 4px 8px 7px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dl-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      color: #1d1d1f;
+      transition: background 0.12s;
+    }
+    .dl-item:hover { background: rgba(115, 173, 107, 0.13); }
+    .dl-item:active { background: rgba(115, 173, 107, 0.22); }
+    .dl-item-main { font-size: 0.82rem; font-weight: 600; letter-spacing: -0.1px; }
+    .dl-item-sub  { font-size: 0.68rem; color: #8e8e93; }
+
+    /* generation progress overlay */
+    .dl-progress {
+      position: fixed; inset: 0;
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 1rem; z-index: 800;
+    }
+    #dl-progress-text { color: #3a3a3c; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -524,6 +585,7 @@
   <button class="btn on" data-size="0.80">M</button>
   <button class="btn"    data-size="0.97">L</button>
   <div class="sep"></div>
+  <button class="btn" id="btn-download">다운로드</button>
   <button class="btn" id="btn-share">공유</button>
   <button class="btn icon" id="btn-fs" title="전체화면">⛶</button>
 </div>
@@ -577,8 +639,26 @@
   <div id="qr-overlay-inner"></div>
 </div>
 
+<div id="download-menu" class="dl-popover" style="display:none">
+  <div class="dl-scope" id="dl-scope"></div>
+  <button class="dl-item" id="dl-normal" type="button">
+    <span class="dl-item-main">PDF 다운로드</span>
+    <span class="dl-item-sub" id="dl-normal-sub">한 파일로 저장</span>
+  </button>
+  <button class="dl-item" id="dl-spread" type="button">
+    <span class="dl-item-main">스프레드 PDF</span>
+    <span class="dl-item-sub">두 쪽 펼침(책) 형태로 저장</span>
+  </button>
+</div>
+
+<div id="dl-progress" class="dl-progress" style="display:none">
+  <div class="big-spinner"></div>
+  <div id="dl-progress-text">PDF 생성 중…</div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script>
 (function () {
   'use strict';
@@ -1708,6 +1788,161 @@
     e.stopPropagation();
     closeQrOverlay();
   });
+
+  /* ── 다운로드 (원본 PDF / 스프레드 PDF) ── */
+  const btnDownload  = document.getElementById('btn-download');
+  const dlMenu       = document.getElementById('download-menu');
+  const dlScopeEl    = document.getElementById('dl-scope');
+  const dlNormalSub  = document.getElementById('dl-normal-sub');
+  const dlNormalBtn  = document.getElementById('dl-normal');
+  const dlSpreadBtn  = document.getElementById('dl-spread');
+  const dlProgress   = document.getElementById('dl-progress');
+  const dlProgressTx = document.getElementById('dl-progress-text');
+
+  function dlBaseName() {
+    const n = (bookMeta && bookMeta.title) || (isCombined ? genreParam : title) || 'download';
+    return String(n).replace(/[\\/:*?"<>|]/g, '').trim() || 'download';
+  }
+
+  function saveBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  const fetchBytes = f => fetch(f).then(r => {
+    if (!r.ok) throw new Error('파일을 불러올 수 없습니다 (' + r.status + ')');
+    return r.arrayBuffer();
+  });
+
+  let dlSrcDocs = null;  // cached pdf-lib source documents (one per book)
+  async function loadSrcDocs() {
+    if (dlSrcDocs) return dlSrcDocs;
+    dlSrcDocs = await Promise.all(
+      pdfFiles.map(async f => PDFLib.PDFDocument.load(await fetchBytes(f)))
+    );
+    return dlSrcDocs;
+  }
+
+  function showDlProgress(msg) { dlProgressTx.textContent = msg; dlProgress.style.display = 'flex'; }
+  function hideDlProgress()    { dlProgress.style.display = 'none'; }
+
+  // 원본 PDF: 실제 페이지만 순서대로 한 파일로 (정렬용 빈 페이지 제외)
+  async function buildNormalPdf() {
+    // 단일 작품이면 원본 그대로 (재인코딩 없이 무손실)
+    if (pdfFiles.length === 1) {
+      const bytes = await fetchBytes(pdfFiles[0]);
+      return new Blob([bytes], { type: 'application/pdf' });
+    }
+    const srcDocs = await loadSrcDocs();
+    const out = await PDFLib.PDFDocument.create();
+    for (let i = 0; i < srcDocs.length; i++) {
+      const src = srcDocs[i];
+      const pages = await out.copyPages(src, src.getPageIndices());
+      pages.forEach(p => out.addPage(p));
+      showDlProgress(`PDF 생성 중… (${i + 1}/${srcDocs.length}편)`);
+      await wait(0);
+    }
+    return new Blob([await out.save()], { type: 'application/pdf' });
+  }
+
+  // 스프레드 PDF: 뷰어 펼침 보기 그대로 — 표지 단독, 짝수쪽 왼쪽 · 홀수쪽 오른쪽, 정렬용 빈 페이지 포함
+  async function buildSpreadPdf() {
+    const srcDocs = await loadSrcDocs();
+    const out = await PDFLib.PDFDocument.create();
+    const embedCache = {};
+    const WHITE = PDFLib.rgb(1, 1, 1);
+
+    async function embFor(g) {
+      if (!g || g < 1 || g > totalPages) return null;
+      const r = resolvePage(g);
+      if (!r || r.isBlank) return null;            // 빈 페이지 → 흰 여백
+      const ck = r.docIdx + ':' + r.localPage;
+      if (embedCache[ck]) return embedCache[ck];
+      const emb = await out.embedPage(srcDocs[r.docIdx].getPage(r.localPage - 1));
+      embedCache[ck] = emb;
+      return emb;
+    }
+
+    // 시트 페어링: [_,1], [2,3], [4,5], … (+ 총 페이지가 짝수면 [마지막,_])
+    const sheets = [[null, 1]];
+    for (let p = 2; p <= totalPages; p += 2) {
+      sheets.push([p, (p + 1 <= totalPages) ? p + 1 : null]);
+    }
+
+    for (let s = 0; s < sheets.length; s++) {
+      const le = await embFor(sheets[s][0]);
+      const re = await embFor(sheets[s][1]);
+      if (!le && !re) continue;                    // 양쪽 다 빈 시트는 건너뜀
+      const lw = le ? le.width  : (re ? re.width  : 420);
+      const rw = re ? re.width  : (le ? le.width  : 420);
+      const lh = le ? le.height : 0;
+      const rh = re ? re.height : 0;
+      const sheetH = Math.max(lh, rh) || 595;
+      const sheetW = lw + rw;
+      const page = out.addPage([sheetW, sheetH]);
+      page.drawRectangle({ x: 0, y: 0, width: sheetW, height: sheetH, color: WHITE });
+      if (le) page.drawPage(le, { x: 0,  y: (sheetH - lh) / 2, width: lw, height: lh });
+      if (re) page.drawPage(re, { x: lw, y: (sheetH - rh) / 2, width: rw, height: rh });
+      showDlProgress(`스프레드 생성 중… (${s + 1}/${sheets.length}장)`);
+      await wait(0);
+    }
+    return new Blob([await out.save()], { type: 'application/pdf' });
+  }
+
+  function closeDlMenu() { dlMenu.style.display = 'none'; }
+  function isDlOpen()    { return dlMenu.style.display !== 'none'; }
+  function openDlMenu() {
+    if (typeof closeSharePopover === 'function') closeSharePopover();
+    const scope = isCombined ? `${genreParam} · 전체 ${pdfFiles.length}편` : dlBaseName();
+    dlScopeEl.textContent   = `${scope} · ${totalPages}쪽`;
+    dlNormalSub.textContent = isCombined ? `전체 ${pdfFiles.length}편을 한 파일로 저장` : '이 작품을 저장';
+    const rect = btnDownload.getBoundingClientRect();
+    dlMenu.style.top   = (rect.bottom + 8) + 'px';
+    dlMenu.style.right = (window.innerWidth - rect.right) + 'px';
+    dlMenu.style.display = 'flex';
+  }
+
+  btnDownload.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (isDlOpen()) closeDlMenu(); else openDlMenu();
+  });
+  document.addEventListener('click', (e) => {
+    if (!isDlOpen()) return;
+    if (dlMenu.contains(e.target) || btnDownload.contains(e.target)) return;
+    closeDlMenu();
+  });
+  window.addEventListener('resize', () => { if (isDlOpen()) openDlMenu(); });
+
+  async function runDownload(kind) {
+    const needsLib = kind === 'spread' || pdfFiles.length > 1;
+    if (needsLib && !window.PDFLib) {
+      alert('PDF 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
+      return;
+    }
+    closeDlMenu();
+    const base = dlBaseName();
+    try {
+      showDlProgress(kind === 'spread' ? '스프레드 PDF 생성 중…' : 'PDF 생성 중…');
+      await wait(30);  // 오버레이가 먼저 그려지도록 양보
+      const blob = kind === 'spread' ? await buildSpreadPdf() : await buildNormalPdf();
+      const name = kind === 'spread' ? `${base} (스프레드).pdf` : `${base}.pdf`;
+      saveBlob(blob, name);
+    } catch (err) {
+      console.error('[download]', err);
+      alert('다운로드 PDF를 만들지 못했습니다: ' + (err && err.message ? err.message : err));
+    } finally {
+      hideDlProgress();
+    }
+  }
+
+  dlNormalBtn.addEventListener('click', (e) => { e.stopPropagation(); runDownload('normal'); });
+  dlSpreadBtn.addEventListener('click', (e) => { e.stopPropagation(); runDownload('spread'); });
 
   /* Auto-hide bars */
   let hideTimer;
