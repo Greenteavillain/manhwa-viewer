@@ -1299,7 +1299,7 @@
     try {
       if (!pdfFiles.length) { annotations = []; return; }
       const results = await Promise.all(
-        pdfFiles.map(f => sbFetch(`annotations?pdf_file=eq.${encodeURIComponent(f)}&order=created_at.asc`))
+        pdfFiles.map(f => sbFetch(`annotations?select=id,pdf_file,page_number,x_pct,y_pct,author,content,created_at&pdf_file=eq.${encodeURIComponent(f)}&order=created_at.asc`))
       );
       annotations = results.flat().map(attachGlobalPage);
     } catch { annotations = []; }
@@ -1310,7 +1310,7 @@
     if (!r) return;
     const pdfFile = pdfFiles[r.docIdx];
     try {
-      const rows = await sbFetch('annotations', {
+      const rows = await sbFetch('annotations?select=id,pdf_file,page_number,x_pct,y_pct,author,content,created_at', {
         method: 'POST',
         headers: { 'Prefer': 'return=representation' },
         body: JSON.stringify({ pdf_file: pdfFile, page_number: r.localPage, x_pct: xPct, y_pct: yPct, author: author || '익명', content, password })
@@ -1325,19 +1325,24 @@
     }
   }
 
+  async function annotDelete(id, pw) {
+    try {
+      const r = await sbFetch('rpc/annotation_delete', { method: 'POST', body: JSON.stringify({ p_id: id, p_pw: pw }) });
+      return r === true;
+    } catch { return false; }
+  }
+
   async function deleteAnnotation(annot) {
-    if (annot.password) {
+    // 비번 없는 메모면 빈값으로 바로 삭제됨; 비번 있으면 false → 입력받아 서버에서 재확인
+    let ok = await annotDelete(annot.id, '');
+    if (!ok) {
       const input = prompt('삭제 비밀번호를 입력하세요');
       if (input === null) return;
-      if (input !== annot.password) { alert('비밀번호가 틀렸습니다.'); return; }
+      ok = await annotDelete(annot.id, input);
+      if (!ok) { alert('비밀번호가 틀렸습니다.'); return; }
     }
-    try {
-      await sbFetch(`annotations?id=eq.${annot.id}`, { method: 'DELETE' });
-      annotations = annotations.filter(a => a.id !== annot.id);
-      refreshAnnotsOnPage(annot._globalPage);
-    } catch(err) {
-      console.error('메모 삭제 실패:', err);
-    }
+    annotations = annotations.filter(a => a.id !== annot.id);
+    refreshAnnotsOnPage(annot._globalPage);
   }
 
   function refreshAnnotsOnPage(globalPageNum) {

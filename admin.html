@@ -374,19 +374,29 @@
   'use strict';
 
   /* ── 설정 (비밀번호 여기서 변경) ── */
-  const ADMIN_PW = 'admin1234';
+  // 관리자 비밀은 서버(manhwa_admin 테이블)에 저장됨 — 로그인 때 입력받아 세션에만 보관(소스에 안 박음)
   const SB_URL   = 'https://ihecmsgxpfdiizlkdylv.supabase.co';
   const SB_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloZWNtc2d4cGZkaWl6bGtkeWx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NDQxNTUsImV4cCI6MjA5MzAyMDE1NX0.yKOehtOFcr7IRpDFsKmiRJFB63QsAxk1NU258EKfr0s';
 
   /* ── 로그인 ── */
-  if (sessionStorage.getItem('adm') === '1') boot();
+  if (sessionStorage.getItem('adm_secret')) boot();
 
   document.getElementById('pw-btn').addEventListener('click', tryLogin);
   document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
 
-  function tryLogin() {
-    if (document.getElementById('pw').value === ADMIN_PW) {
-      sessionStorage.setItem('adm', '1');
+  async function tryLogin() {
+    const v = document.getElementById('pw').value;
+    let ok = false;
+    try {
+      const r = await fetch(SB_URL + '/rest/v1/rpc/manhwa_admin_check', {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_secret: v })
+      });
+      ok = r.ok && (await r.json()) === true;
+    } catch { ok = false; }
+    if (ok) {
+      sessionStorage.setItem('adm_secret', v);
       boot();
     } else {
       document.getElementById('login-err').style.display = 'block';
@@ -401,7 +411,7 @@
   }
 
   document.getElementById('btn-logout').addEventListener('click', () => {
-    sessionStorage.removeItem('adm'); location.reload();
+    sessionStorage.removeItem('adm_secret'); location.reload();
   });
   document.getElementById('btn-refresh').addEventListener('click', loadAll);
 
@@ -414,11 +424,16 @@
     return Array.isArray(data) ? data : [];
   }
 
-  async function sbDel(path) {
-    await fetch(SB_URL + '/rest/v1/' + path, {
-      method: 'DELETE',
-      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
-    });
+  // 관리자 삭제: 직접 DELETE는 차단됐으므로 RPC로(관리자 비밀을 비번 자리에 전달 → 어떤 메모든 삭제)
+  async function adminDelete(id) {
+    try {
+      const r = await fetch(SB_URL + '/rest/v1/rpc/annotation_delete', {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_id: id, p_pw: sessionStorage.getItem('adm_secret') || '' })
+      });
+      return r.ok && (await r.json()) === true;
+    } catch { return false; }
   }
 
   /* ── 유틸 ── */
@@ -440,7 +455,7 @@
 
     const [v, a, m, s] = await Promise.all([
       sbGet('visits?select=pdf_file,visited_at&order=visited_at.desc&limit=5000'),
-      sbGet('annotations?select=*&order=created_at.desc'),
+      sbGet('annotations?select=id,pdf_file,page_number,author,content,created_at&order=created_at.desc'),
       fetch('manifest.json').then(r => r.ok ? r.json() : []).catch(() => []),
       sbGet('pdf_settings?select=*')
     ]);
@@ -765,7 +780,8 @@
       btn.addEventListener('click', async () => {
         if (!confirm('이 메모를 삭제하시겠습니까?')) return;
         btn.disabled = true; btn.textContent = '…';
-        await sbDel(`annotations?id=eq.${btn.dataset.id}`);
+        const ok = await adminDelete(btn.dataset.id);
+        if (!ok) { alert('삭제 실패 — 로그아웃 후 다시 로그인해 주세요'); btn.disabled = false; btn.textContent = '삭제'; return; }
         annots = annots.filter(a => a.id !== btn.dataset.id);
         renderStats();
         renderPdfs();
