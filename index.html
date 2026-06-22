@@ -201,6 +201,8 @@
       -webkit-user-drag: none;
       user-select: none;
     }
+    /* 지정 SVG 아이콘은 기본의 90% 크기(70%→63%)로 살짝 작게 */
+    .cover-icon.custom img { width: 63%; }
     .card:hover .cover-icon {
       opacity: 0;
       transform: scale(0.94);
@@ -429,13 +431,15 @@
         for (const item of groups[g]) {
           const card = document.createElement('a');
           card.className = 'card';
-          card.href = `viewer.html?pdf=${encodeURIComponent(item.file)}&title=${encodeURIComponent(item.title)}`;
+          card.href = item.id
+            ? `viewer.html?id=${encodeURIComponent(item.id)}`
+            : `viewer.html?pdf=${encodeURIComponent(item.file)}&title=${encodeURIComponent(item.title)}`;
 
           const fileName = (item.file.split('/').pop()) || `${item.title}.pdf`;
 
           card.innerHTML = `
             <div class="cover-wrap" data-pdf="${item.file}">
-              <div class="cover-icon">${item.icon ? `<img src="${item.icon}" alt="PDF" draggable="false">` : randomPdfIcon()}</div>
+              <div class="cover-icon${item.icon ? ' custom' : ''}">${item.icon ? `<img src="${item.icon}" alt="PDF" draggable="false">` : randomPdfIcon()}</div>
               <div class="cover-thumb"></div>
             </div>
             <div class="card-info">

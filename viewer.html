@@ -667,10 +667,11 @@
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
   const params = new URLSearchParams(location.search);
-  const pdfUrl     = params.get('pdf');
+  const idParam    = params.get('id');      // 짧은 단일 작품 링크: ?id=<작품 id>
+  let   pdfUrl     = params.get('pdf');
   const genreParam = params.get('genre');
   const isCombined = !!genreParam;
-  const title      = params.get('title') || genreParam || 'PDF 뷰어';
+  let   title      = params.get('title') || genreParam || 'PDF 뷰어';
 
   let pdfDocs    = [];   // pdfjs documents (length 1 in single mode, N in combined)
   let pdfFiles   = [];   // matching array of pdf URLs
@@ -1522,11 +1523,23 @@
 
   /* ── Load PDF(s) ── */
   async function loadPdf() {
-    if (!pdfUrl && !isCombined) { loadText.textContent = '?pdf= 또는 ?genre= 파라미터가 필요합니다.'; return; }
+    if (!pdfUrl && !isCombined && !idParam) { loadText.textContent = '?id= / ?pdf= / ?genre= 파라미터가 필요합니다.'; return; }
     try {
       // Resolve which PDFs to load
       let manifestItems = [];
       try { manifestItems = await fetch('manifest.json').then(r => r.json()); } catch {}
+
+      // 짧은 링크(?id=<작품 id>) → 파일·제목 해석 (기존 ?pdf=/?genre= 도 그대로 동작)
+      if (idParam && !pdfUrl && !isCombined) {
+        const byId = manifestItems.find(it => it.id === idParam);
+        if (!byId) { loadText.textContent = `작품을 찾을 수 없습니다: ${idParam}`; return; }
+        pdfUrl = byId.file;
+        if (!params.get('title')) {
+          title = byId.title || title;
+          titleLabel.textContent = title;
+          document.title = title;
+        }
+      }
 
       let targetItems;
       if (isCombined) {
