@@ -78,6 +78,13 @@
     "genre": "말차 소금 여행기"
   },
   {
+    "id": "travel_day1_1",
+    "title": "여행 1일차 ①",
+    "file": "pdfs/여행1일차1.pdf",
+    "genre": "말차 소금 여행기",
+    "icon": "PDF_file_icon.svg"
+  },
+  {
     "id": "unit_select",
     "title": "자대 선택",
     "file": "pdfs/자대 선택.pdf",

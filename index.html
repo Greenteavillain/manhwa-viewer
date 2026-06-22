@@ -435,7 +435,7 @@
 
           card.innerHTML = `
             <div class="cover-wrap" data-pdf="${item.file}">
-              <div class="cover-icon">${randomPdfIcon()}</div>
+              <div class="cover-icon">${item.icon ? `<img src="${item.icon}" alt="PDF" draggable="false">` : randomPdfIcon()}</div>
               <div class="cover-thumb"></div>
             </div>
             <div class="card-info">
