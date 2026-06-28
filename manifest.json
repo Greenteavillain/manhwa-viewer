@@ -103,6 +103,12 @@
     "genre": "소미도 근무일지"
   },
   {
+    "id": "egg_roll",
+    "title": "그 계란말이",
+    "file": "pdfs/그 계란말이.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
     "id": "distress",
     "title": "조난",
     "file": "pdfs/조난.pdf",
