@@ -109,6 +109,12 @@
     "genre": "소미도 근무일지"
   },
   {
+    "id": "solo_kitchen",
+    "title": "혼자 쓰는 주방",
+    "file": "pdfs/혼자 쓰는 주방.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
     "id": "distress",
     "title": "조난",
     "file": "pdfs/조난.pdf",
