@@ -4,6 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>만화 라이브러리</title>
+  <!-- ─────────────────────────────────────────────────────────────
+       AI(클로드 등)로 이 만화를 읽는 법 — 사람 화면엔 안 보이는 개발용 메모.
+       (만화 목록은 JS로 그려지고 각 편이 이미지 PDF라, 링크만 받는 AI를 위한 힌트)
+       · 작품 목록: https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/manifest.json
+                    (각 항목 genre=시리즈명, file=PDF 경로)
+       · 각 편 PDF: https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/<file>
+       · 파일은 raw.githubusercontent.com 로 받을 것 (github.io는 일부 AI 샌드박스서 차단).
+         이미지 PDF라 300DPI 이상으로 렌더해 그림·대사를 읽고, 시리즈는 manifest 순서대로.
+       · 예) "소미도 근무일지 읽어" → manifest에서 genre가 그 값인 편들을 순서대로.
+       ───────────────────────────────────────────────────────────── -->
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" as="style" crossorigin
@@ -287,32 +297,6 @@
       .filters { gap: 1.1rem; }
       .filter-btn { font-size: 0.82rem; }
     }
-
-    /* ── AI READ-ME (기계용 목차: 자바스크립트 없이 fetch만으로도 보이는 안내.
-       사람 눈엔 맨 아래에 작고 흐리게. 목적은 아래 <section id="ai-readme"> 주석 참고) ── */
-    #ai-readme {
-      max-width: 1400px;
-      margin: 3rem auto 0;
-      padding: 1.5rem 2rem 3rem;
-      border-top: 1px solid rgba(0, 0, 0, 0.08);
-      color: #8e8e93;
-      font-size: 0.75rem;
-      line-height: 1.65;
-    }
-    #ai-readme h2 { font-size: 0.82rem; color: #6e6e73; font-weight: 700; margin-bottom: 0.7rem; }
-    #ai-readme p  { margin-bottom: 0.5rem; }
-    #ai-readme a  { color: #73ad6b; word-break: break-all; }
-    #ai-readme code {
-      background: rgba(0, 0, 0, 0.05); border-radius: 3px; padding: 1px 4px;
-      font-size: 0.72rem; word-break: break-all;
-    }
-    #ai-readme ul { margin: 0.2rem 0 0.6rem 1.1rem; }
-    #ai-readme li { margin-bottom: 0.15rem; }
-    #ai-readme details { margin-top: 0.7rem; }
-    #ai-readme summary { cursor: pointer; color: #6e6e73; }
-    #ai-readme .ai-series { margin-top: 0.7rem; color: #6e6e73; }
-    #ai-readme .ai-eplist { margin: 0.2rem 0 0.5rem 1.3rem; }
-    @media (max-width: 600px) { #ai-readme { padding: 1.2rem 1rem 2.5rem; } }
   </style>
 </head>
 <body>
@@ -340,61 +324,6 @@
   <main>
     <div id="sections"></div>
   </main>
-
-  <!-- ★ AI-READ-ME: "홈 링크만 주면 AI(클로드 등)가 만화를 읽는다"를 위한 기계용 안내 블록.
-       왜 필요? 위 만화 목록은 자바스크립트로 그려지고 각 편은 이미지 PDF(캔버스)라, 링크를
-       그냥 fetch하는 AI에겐 아무것도 안 보인다. 이 블록은 JS 없이 fetch만으로도 읽힌다.
-       - 목록의 '정답'은 manifest.json (아래 스냅샷이 낡아도 AI가 manifest로 교차확인하면 됨).
-       - 파일 주소는 raw.githubusercontent.com 로 준다 (github.io가 일부 AI 샌드박스에서 차단됨).
-       AI-CATALOG 마커 사이 스냅샷은 tools/build-ai-index.py 로 manifest.json에서 재생성 —
-       손으로 고치지 말 것(만화 추가/순서변경 시 그 스크립트만 다시 돌리면 됨). -->
-  <section id="ai-readme" aria-label="AI에게 읽히는 법">
-    <h2>🤖 AI(클로드 등)에게 이 만화를 읽히려면</h2>
-    <p>이 사이트는 직접 그린 개인 만화(일기툰) 아카이브입니다. 각 편은 <b>손그림 이미지 PDF</b>(글자 레이어 없음)예요. AI로 읽을 땐 아래 정보를 쓰세요. (사람은 무시해도 되는 안내입니다.)</p>
-    <p><b>① 작품 목록(최신·정답):</b> <a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/manifest.json">manifest.json</a> — 각 항목의 <code>genre</code>가 시리즈명, <code>file</code>이 PDF 경로.</p>
-    <p><b>② 각 편 PDF 주소:</b> <code>https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/&lt;file&gt;</code></p>
-    <p><b>③ 읽는 법(중요):</b></p>
-    <ul>
-      <li>파일은 반드시 위 <b>raw.githubusercontent.com</b> 주소로 받으세요. <code>github.io</code>는 일부 AI 샌드박스에서 차단됩니다.</li>
-      <li>이미지 만화라 텍스트 추출이 안 됩니다 → 페이지를 <b>300DPI 이상</b>으로 렌더해 그림·대사를 눈으로 읽으세요.</li>
-      <li>같은 시리즈는 <b>manifest.json에 적힌 순서</b>대로 이어 읽으세요.</li>
-      <li>이 페이지(github.io)조차 안 열리면 <a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/index.html">raw 버전 index.html</a>에서 이 안내를 보세요.</li>
-    </ul>
-    <p><b>현재 시리즈:</b> 말차 소금 여행기 · 소미도 근무일지. 예) “소미도 근무일지 전부 읽어줘” → manifest에서 <code>genre</code>가 “소미도 근무일지”인 편들을 순서대로 읽으면 됩니다.</p>
-    <details>
-      <summary>전체 작품 목록 (스냅샷 · 최신은 manifest.json 우선)</summary>
-      <!-- AI-CATALOG:START (tools/build-ai-index.py 가 생성 — 직접 수정 금지) -->
-      <p class="ai-series"><b>말차 소금 여행기</b> (14편)</p>
-      <ol class="ai-eplist">
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%97%AC%ED%96%89%20%ED%94%84%EB%A1%A4%EB%A1%9C%EA%B7%B8.pdf">여행 프롤로그</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EB%AA%A9%EC%B0%A8.pdf">목차</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EB%8A%A6%EC%9D%84%EB%BB%94.pdf">늦을뻔</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EB%B9%84%ED%96%89%EA%B8%B0.pdf">비행기</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%82%AC%EC%A7%84%20%EC%A0%84.pdf">사진 전</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%97%AC%ED%96%89%20%EC%82%AC%EC%A7%84.pdf">여행 사진</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%9D%BC%EB%B3%B8%20%EB%8F%84%EC%B0%A9.pdf">일본 도착</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%9D%B8%ED%98%95%EB%BD%91%EA%B8%B0.pdf">인형뽑기</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%9D%B8%ED%98%95%EB%BD%91%EA%B8%B0%20%ED%9B%84.pdf">인형뽑기 후</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%98%A4%EB%AF%88%EB%A0%9B.pdf">오믈렛</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%84%A0%EC%83%A4%EC%9D%B8.pdf">선샤인</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%9D%B4%EC%BC%80%EB%B2%84%EC%8A%A4.pdf">이케버스</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EB%B2%84%EC%8A%A4%20%EC%82%AC%EC%A7%84.pdf">버스 사진</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%97%AC%ED%96%891%EC%9D%BC%EC%B0%A81.pdf">여행 1일차 ①</a></li>
-      </ol>
-      <p class="ai-series"><b>소미도 근무일지</b> (8편)</p>
-      <ol class="ai-eplist">
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%9E%90%EB%8C%80%20%EC%84%A0%ED%83%9D.pdf">자대 선택</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/2%ED%99%94%EC%AF%A4.pdf">2화쯤</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%ED%9B%88%EB%A0%A8%EA%B8%B0%EA%B0%84.pdf">훈련기간</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EA%B7%B8%20%EA%B3%84%EB%9E%80%EB%A7%90%EC%9D%B4.pdf">그 계란말이</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%A1%B0%EB%82%9C.pdf">조난</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%ED%95%B4%EB%8F%8B%EC%9D%B4.pdf">해돋이</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EC%88%AD%EC%96%B4.pdf">숭어</a></li>
-        <li><a href="https://raw.githubusercontent.com/Greenteavillain/manhwa-viewer/main/pdfs/%EB%B0%94%EB%A9%8D.pdf">바멍</a></li>
-      </ol>
-      <!-- AI-CATALOG:END -->
-    </details>
-  </section>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
