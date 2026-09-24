@@ -92,7 +92,7 @@
   },
   {
     "id": "ep2",
-    "title": "2화쯤",
+    "title": "2화쯤 (자대 도착)",
     "file": "pdfs/2화쯤.pdf",
     "genre": "소미도 근무일지"
   },
@@ -112,6 +112,12 @@
     "id": "solo_kitchen",
     "title": "혼자 쓰는 주방",
     "file": "pdfs/혼자 쓰는 주방.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
+    "id": "sausage",
+    "title": "쏘야는 언제 나옵니까",
+    "file": "pdfs/쏘야는 언제 나옵니까.pdf",
     "genre": "소미도 근무일지"
   },
   {
@@ -136,6 +142,24 @@
     "id": "sea_gaze",
     "title": "바멍",
     "file": "pdfs/바멍.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
+    "id": "bbq",
+    "title": "바베큐",
+    "file": "pdfs/바베큐.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
+    "id": "bibim",
+    "title": "비빔면",
+    "file": "pdfs/비빔면.pdf",
+    "genre": "소미도 근무일지"
+  },
+  {
+    "id": "shift",
+    "title": "정교대로",
+    "file": "pdfs/정교대로.pdf",
     "genre": "소미도 근무일지"
   }
 ]
